@@ -15,9 +15,14 @@ extern unsigned int Vrx_global;
 extern unsigned int Vry_global;
 extern unsigned int phy_global;
 extern int calib_flag;
-
+extern unsigned int hundred_ms;
+extern unsigned int flash_address_script_1;
 #define half_sec 500;
 #define clk_tmp 131; // ( (2^20) / 8 )*(10^-3) to convert ms to counter value for TACCR0
+
+extern int upload_scr_1_completed;
+extern void uart_putc(unsigned char c);
+extern void uart_puts(const char* str);
 
 extern void sysConfig(void);
 extern void print2RGB(char);
@@ -29,9 +34,13 @@ extern void enterLPM(unsigned char);
 extern void enable_interrupts();
 extern void disable_interrupts();
 extern void timer_call_counter();
-
+extern void timer_hundred_ms_counter();
+extern void write_char_to_flash(char rx_char, int flash_address);
+extern void erase_segment(int address);
+extern void write_mat_to_FLASH(char *data, unsigned int flash_address);
 extern void read_avg_Joystick();
-
+extern void receive_script_from_PC(unsigned int * upload_scr_comp_flag);
+extern void scriptEx(int flash_address);
 
 extern __interrupt void PBs_handler(void);
 extern __interrupt void PBs_handler_P2(void);
@@ -39,7 +48,7 @@ extern __interrupt void Timer_A0(void);
 extern __interrupt void Timer_A1(void);
 extern __interrupt void USCI0RX_ISR(void);
 extern __interrupt void USCI0TX_ISR(void);
-
+//extern __interrupt void RESET_ISR (void);
 #endif
 
 // #define CHECKBUSY    1  // using this define, only if we want to read from LCD

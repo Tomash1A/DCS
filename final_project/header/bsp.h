@@ -30,15 +30,15 @@
 #define BuzzPortOut        P2OUT
 #define BUZZMASK           BIT4     //P2.4
 
-// Joystick Abstraction -Vrx, Vry
-#define JoystickDataPort         P1IN
-#define JoystickDataPortOut      P1OUT
-#define JoystickDataPortSEL      P1SEL
-#define JoystickDataPortDir      P1DIR
-#define JoystickDataIntEn        P2IE
-#define JoystickDataIntEdgeSel   P2IES
-#define VrxMask                  BIT0 //Vrx -> P1.0
-#define VryMask                  BIT3 //Vry -> P1.3
+//// Joystick Abstraction -Vrx, Vry
+//#define JoystickDataPort         P1IN
+//#define JoystickDataPortOut      P1OUT
+//#define JoystickDataPortSEL      P1SEL
+//#define JoystickDataPortDir      P1DIR
+//#define JoystickDataIntEn        P2IE
+//#define JoystickDataIntEdgeSel   P2IES
+#define VrxMask                  0x00 //Vrx -> P1.0
+#define VryMask                  0x11 //Vry -> P1.3
 
 // Joystick Abstraction - Push Button
 #define JoystickPBPort         P2IN
