@@ -1,6 +1,8 @@
 #include  "../header/halGPIO.h"     // private library - HAL layer
 #include "stdio.h"
-
+#include <msp430.h>
+#include <stdint.h>
+#include <string.h>
 
 // Global Variables
 char string1[5];
@@ -11,6 +13,7 @@ int delay_ifg = 0;
 int char_ifg = 0;
 int state_flag = 0;
 unsigned int delay_time = 500;
+unsigned int hundred_ms = 100;
 int char_from_pc ;
 const unsigned int timer_half_sec = 65535;
 unsigned int Vrx_global = 0x0000;
@@ -18,6 +21,10 @@ unsigned int Vry_global = 0x0000;
 unsigned int phy_global;
 int calib_flag = 0;
 
+//For script states:
+static unsigned int flash_address_script_1 = 0x1000;
+int upload_scr_1_completed = 0;
+//unsigned int reset_flag= 0;
 
 //--------------------------------------------------------------------
 //             System Configuration  
@@ -41,12 +48,25 @@ void print2RGB(char ch){
 //            General Function
 //---------------------------------------------------------------------
 
+void uart_putc(unsigned char c) {
+    while (!(IFG2 & UCA0TXIFG));        // Wait for TX buffer to be ready
+    UCA0TXBUF = c;                      // Send character
+    IE2 |= UCA0TXIE;                    // Enable USCI_A0 TX interrupt
+}
+
+void uart_puts(const char* str) {
+    while(*str) uart_putc(*str++);
+    uart_putc('\n');
+    IE2 &= ~UCA0TXIE;                    // Disable USCI_A0 TX interrupt
+}
+
 void read_avg_Joystick(unsigned int* Vrx_result, unsigned int* Vry_result) {
     // Reads the voltages of Vrx and Vry 4 times,
     // stores the averaged value in the provided pointers
     unsigned int Vrx_temp = 0;
     unsigned int Vry_temp = 0;
     int i = 1;
+    int j = 1;
     for(i = 1; i <= 4; i++){
         // read Vrx:
         ADC_Joystick_config(VrxMask);
@@ -54,7 +74,9 @@ void read_avg_Joystick(unsigned int* Vrx_result, unsigned int* Vry_result) {
         __bis_SR_register(LPM0_bits + GIE);          // Enter LPMO w/ interrupt
         ADC10CTL0 &= ~ADC10ON;                       // Don't get into interrupt
         Vrx_temp += ADC10MEM;
+    }
 
+    for(j = 1; j <= 4; j++){
         // read Vry:
         ADC_Joystick_config(VryMask);
         ADC10CTL0 |= ENC + ADC10SC;                  // Start sampling
@@ -67,35 +89,6 @@ void read_avg_Joystick(unsigned int* Vrx_result, unsigned int* Vry_result) {
     *Vrx_result = Vrx_temp >> 2;
     *Vry_result = Vry_temp >> 2;
 }
-////----------------Read Vrx, Vry from Joystick--------------------------
-//void read_avg_Joystick(){
-//    // Reads the voltages of Vrx and Vry 4 times,
-//    // stores the averaged value in the global variables
-//    int i = 1;
-//    unsigned int Vrx_temp = 0;
-//    unsigned int Vry_temp = 0;
-//    for(i = 1; i <= 4; i++){
-//        //read Vrx:
-//        ADC_Joystick_config(VrxMask);
-//        ADC10CTL0 |= ENC + ADC10SC;             // Start sampling
-//        __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
-//        ADC10CTL0 &= ~ADC10ON; // Don't get into interrupt
-//        Vrx_temp += ADC10MEM;
-//
-//        //read Vry:
-//        ADC_Joystick_config(VryMask);
-//        ADC10CTL0 |= ENC + ADC10SC;             // Start sampling
-//        __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
-//        ADC10CTL0 &= ~ADC10ON; // Don't get into interrupt
-//        Vry_temp += ADC10MEM;
-//    }
-//    Vrx_global = Vrx_temp >> 2; //use shift right 2 times to make floor division by 4
-//    Vry_global = Vry_temp >> 2;
-//}
-
-
-//------------------------------------------
-
 
 //----------------------Int to String---------------------------------
 void int2str(char *str, unsigned int num){
@@ -136,6 +129,27 @@ void timer_call_counter(){
         __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ int until Byte RXed
     }
 }
+
+//----------------------Count Timer Calls---------------------------------
+void timer_hundred_ms_counter(){
+
+    unsigned int num_of_halfSec;
+
+    num_of_halfSec = (int) hundred_ms / half_sec;
+    unsigned int res;
+    res = delay_time % half_sec;
+    res = res * clk_tmp;
+
+    for (i=0; i < num_of_halfSec; i++){
+        TIMER_A0_config(timer_half_sec);
+        __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ int until Byte RXed
+    }
+
+    if (res > 1000){
+        TIMER_A0_config(res);
+        __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ int until Byte RXed
+    }
+}
 //---------------------------------------------------------------------
 //            Enter from LPM0 mode
 //---------------------------------------------------------------------
@@ -162,6 +176,118 @@ void enable_interrupts(){
 //---------------------------------------------------------------------
 void disable_interrupts(){
   _BIC_SR(GIE);
+}
+
+
+//----------------------------------------------------------------------
+//                          FLASH Functions
+//----------------------------------------------------------------------
+
+void write_char_to_flash(char rx_char, int flash_address) {
+    if(rx_char != 0xFF){
+        char *flash_ptr;
+        flash_ptr = (char *)flash_address;
+
+        // Check if we're still within our defined limits
+
+        FCTL3 = FWKEY;
+        FCTL1 = FWKEY | WRT;
+
+        // Write the character to flash memory
+        *flash_ptr = rx_char;
+
+        FCTL1 = FWKEY;
+        FCTL3 = FWKEY | LOCK;
+    }
+    else{
+       upload_scr_1_completed = 1;
+    }
+}
+
+
+void erase_segment(int address){
+    char *flash_ptr;
+    unsigned int i;
+    flash_ptr = (char *)address;
+    FCTL3 = FWKEY;
+    FCTL1 = FWKEY | ERASE;
+    *flash_ptr = 0;
+    FCTL1 = FWKEY | WRT;
+    for(i = 0; i < 0x0050; i++)
+        *flash_ptr++ = 0XFF;
+    FCTL1 = FWKEY;
+    FCTL3 = FWKEY | LOCK;
+}
+
+
+//----------------------------------------------------------------------
+//                          Exexute Script
+//----------------------------------------------------------------------
+void scriptEx(int flash_address){
+    char *flash_ptr;
+    flash_ptr = (char *)flash_address;
+    int i=0; // index
+    int finish_flag = 0;
+    int command;
+    int arg1;
+    int arg2;
+    while((i < 70) && (finish_flag ==0)){  //execute ten
+//        command = *(flash_ptr+i);
+//        command = (*(flash_ptr+i) << 8) | *(flash_ptr+i+1);
+        command = *(flash_ptr + i);
+        i++;
+        switch(command){
+        case 0x01:
+            arg1 = *(flash_ptr + i);
+            count_up_LCD(arg1);
+            break;
+        case 0x02:
+            arg1 = *(flash_ptr + i);
+            count_down_LCD(arg1);
+            break;
+        case 0x03:
+            arg1 = *(flash_ptr + i);
+            Rotate_right(arg1);
+//            Rotate_right(arg1);
+            break;
+        case 0x04: // set_delay
+            arg1 = *(flash_ptr + i);
+            delay_time = arg1* 10;
+            break;
+        case 0x05: // clear_lcd
+            lcd_clear();
+            lcd_home();
+            break;
+        case 0x06: // servo_de
+            arg1 = *(flash_ptr + i);
+            i++;        //only this incremnet is needed because this func has two arguments
+//            arg1 = *(flash_ptr+i);
+//            posInput = arg1 / 3; // posInput is in index
+//            posInput = (posInput == MEAS_NUM) ? (MEAS_NUM-1) : posInput; // If arg1 is 180 degree
+//            rotateToPosGrad(posInput);
+//            sendAck();
+//            telemeter();
+//            delayWrapper(lon);
+            break;
+        case 0x07: // servo_scan
+            arg1 = *(flash_ptr + i);
+//            arg1 = *(pnt+i) / 3;
+//            i++;
+//            i++;
+//            arg1 = word_from_flash(flash_ptr);
+//            arg2 = *(pnt+i) / 3;
+//            arg2 = (arg2 == MEAS_NUM) ? (MEAS_NUM-1) : arg2; // If arg2 is 180 degree
+//            servo_scan(arg1, arg2);
+//            delayWrapper(lon);
+            break;
+        case 0x08: // sleep
+            return; // Exit function - Back to state7
+        case 0xFF:
+            finish_flag = 1;
+        }
+        i++;
+    }
+    finish_flag = 0; // Reset flag for communication
 }
 
 //---------------------------------------------------------------------
@@ -317,17 +443,23 @@ void delay(unsigned int t){  //
   __interrupt void PBs_handler(void){
     delay(debounceVal);
     //add a state dependence in the condition
+    IE2 &= ~UCA0TXIE;                    // Disable USCI_A0 TX interrupt
+
     //state2- paint
-    if(JoystickPBIntPend & (state==state2)){
+
+    if((JoystickPBIntPend & JPBMask) && (state==state2)){
         //should transmit the click and let the computer deal with it
         JoystickPBIntPend &= ~JPBMask;
+        UCA0TXBUF = 'P';
+        IE2 |= UCA0TXIE;
+
     }
     //state3- calibrate phy mission
-    else if(JoystickPBIntPend & (state==state3)){
+    else if((JoystickPBIntPend & JPBMask) && (state==state3)){
         //first click should start step motor, second one should stop it
         JoystickPBIntPend &= ~JPBMask;
     }
-    else if(JoystickPBIntPend & (state==state1)){
+    else if((JoystickPBIntPend & JPBMask) && (state==state1)){
         JoystickPBIntPend &= ~JPBMask;
     }
 
@@ -389,10 +521,6 @@ void __attribute__ ((interrupt(USCIAB0TX_VECTOR))) USCI0TX_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    if(state == state7) UCA0TXBUF = '8'; //print menu in PC
-    else if (delay_ifg) UCA0TXBUF = '4';
-    else if (char_ifg) UCA0TXBUF = '7';
-    else UCA0TXBUF = 'F';   // Finish
     IE2 &= ~UCA0TXIE;                       // Disable USCI_A0 TX interrupt
 }
 
@@ -409,75 +537,63 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    if(UCA0RXBUF == '1' && delay_ifg == 0){
-        state = state1;
-        IE2 |= UCA0TXIE;
-    }
-    else if(UCA0RXBUF == '2' && delay_ifg == 0){
-        state = state2;
-        IE2 |= UCA0TXIE;
-    }
-    else if(UCA0RXBUF == '3' && delay_ifg == 0){
-        state = state3;
-        IE2 |= UCA0TXIE;
-    }
-    else if(UCA0RXBUF == '4' || delay_ifg){
-
-        if (delay_ifg == 1){
-            string1[j] = UCA0RXBUF;
-            j++;
-            if (string1[j-1] == '\n'){
-                j = 0;
-                delay_ifg = 0;
-                state_flag = 0;
-                state = state4;
-                IE2 |= UCA0TXIE;        // Enable USCI_A0 TX interrupt
-
-            }
+    if((state==state8) || (state==state1) ||(state==state2) ||(state==state3) ||(state==state4)){    //If states 0-4
+//    if(receiving_script==0){
+        if(UCA0RXBUF == '1'){
+            state = state1;
+            UCA0TXBUF = '1';    //Send 'ack' to PC by TXing '1'
+            IE2 |= UCA0TXIE;
         }
-        else{
-        delay_ifg = 1;
-        IE2 |= UCA0TXIE;        // Enable USCI_A0 TX interrupt
+        else if(UCA0RXBUF == '2'){
+            state = state2;
+            UCA0TXBUF = '2';
+            IE2 |= UCA0TXIE;    //Notify PC side that Joystick voltage is arriving, by sending "2"
         }
 
-    }
-    else if(UCA0RXBUF == '5' && delay_ifg == 0){
-        state = state5;
-        IE2 |= UCA0TXIE;
-    }
-    else if(UCA0RXBUF == '6' && delay_ifg == 0){
-        state = state6;
-        IE2 |= UCA0TXIE;
-    }
-    else if(UCA0RXBUF == '8' && delay_ifg == 0){
-        state = state7;
-        IE2 |= UCA0TXIE;                        // Enable USCI_A0 TX interrupt
-    }
-    else if(UCA0RXBUF == '9' && delay_ifg == 0){
-        state = state8;
-        IE2 |= UCA0TXIE;
-    }
-   // For real time mission
-    else if(UCA0RXBUF == '7' || char_ifg){
-        if (char_ifg == 1){
-            string2= UCA0RXBUF;
-            char_ifg = 0;
-            state_flag = 0;
-            state = state9;
-            IE2 |= UCA0TXIE;        // Enable USCI_A0 TX interrupt
-
+        else if(UCA0RXBUF == '2'){
+            state = state2;
+            UCA0TXBUF = '2';
+            IE2 |= UCA0TXIE;    //Notify PC side that Joystick voltage is arriving, by sending "2"
         }
-        else{
-        char_ifg = 1;
-        IE2 |= UCA0TXIE;        // Enable USCI_A0 TX interrupt
+        else if(UCA0RXBUF == '4'){
+            state = state8;
+            UCA0TXBUF = 'F';
+            IE2 |= UCA0TXIE;    //Do nothing. Turn off CPU, nothing to do as script work has its own states.
+        }
+        else if(UCA0RXBUF == '5'){
+            state = state5;
+            flash_address_script_1 = 0x1000;
+            erase_segment(flash_address_script_1);
+            upload_scr_1_completed = 0;
+//            UCA0TXBUF = 'F';
+//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
+        }
+        else if(UCA0RXBUF == '8'){
+            state = state6;
+            UCA0TXBUF = 'F';
+            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
+        }
+        //wise guys proofing: (so it wont crash on invalid key)
+        else {
+            state = state8;
+            UCA0TXBUF = 'F';
+            IE2 |= UCA0TXIE;
         }
     }
-    //wise guys proofing: (so it wont crash on invalid key)
-    else {
-        state = state8;
-        IE2 |= UCA0TXIE;
+    else{
+        // In your main loop or UART receive interrupt handler:
+        if ((state == state5) && (upload_scr_1_completed == 0)){
+                write_char_to_flash(UCA0RXBUF, flash_address_script_1);
+                flash_address_script_1++;
+//                // Script reception complete
+//                UCA0TXBUF = 'A1'; // Acknowledge receipt
+//                IE2 |= UCA0TXIE;
+//                state = state8; // Move to the next state
+        }
+//        else{   // will use states 6-10 for other scripts
+//            break;
+//        }
     }
-
 
     switch(lpm_mode){
     case mode0:
@@ -497,3 +613,17 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         break;
     }
 }
+
+
+//*********************************************************************
+//                         RESET ISR
+//*********************************************************************
+//#pragma vector = RESET_VECTOR
+//__interrupt void RESET_ISR (void)
+//{
+//    state = state8;  // start in idle state on RESET
+//    lpm_mode = mode0;     // start in idle state on RESET
+//    reset_flag = 1;
+//    sysConfig();     // Configure GPIO, Stop Timers, Init LCD
+//
+//}

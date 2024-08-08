@@ -11,13 +11,6 @@ void GPIOconfig(void){
   LCD_DATA_DIR |= 0xF0;    // P1.4-P1.7 To Output('1')
   LCD_DATA_SEL &= ~0xF0;   // Bit clear P1.4-P1.7
   LCD_CTL_SEL  &= ~0xE0;   // Bit clear P2.5-P2.7
-
-  // Joystick voltage configuration (Inputs: Vrx, Vry)  should be considered again.
-  // probably going to be collected through ADC A0 & A3.
-
-//  JoystickDataPortOut &= ~(VrxMask + VryMask); //check if button is pull up or down and then decide
-//  JoystickDataPortSEL &= ~(VrxMask + VryMask); //set sel to 0, input/output mode
-//  JoystickDataPortDir &= ~(VrxMask + VryMask); // set as inputs
   
   // Joystick PB configuration (Input PB)
   JoystickPBPortSEL     &= ~JPBMask;    //Set I/O mode
@@ -115,8 +108,8 @@ void UART_init(void){
     BCSCTL1 = CALBC1_1MHZ;                    // Set DCO
     DCOCTL = CALDCO_1MHZ;
 
-    P2DIR = 0xFF;                             // All P2.x outputs
-    P2OUT = 0;                                // All P2.x reset
+//    P2DIR = 0xFF;                             // All P2.x outputs
+//    P2OUT = 0;                                // All P2.x reset
     P1SEL = BIT1 + BIT2 ;                     // P1.1 = RXD, P1.2=TXD
     P1SEL2 = BIT1 + BIT2 ;                     // P1.1 = RXD, P1.2=TXD
     P1DIR |= RXLED + TXLED;
