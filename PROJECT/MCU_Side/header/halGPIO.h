@@ -7,13 +7,12 @@
 
 extern enum FSMstate state;   // global variable
 extern enum SYSmode lpm_mode; // global variable
-extern char string1[5];
-extern char string2;
 extern unsigned int delay_time;
 extern int char_from_pc ;
 extern unsigned int Vrx_global;
 extern unsigned int Vry_global;
-extern unsigned int phy_global;
+extern double phy_global;
+extern double heading_global;
 extern int calib_flag;
 extern unsigned int hundred_ms;
 extern unsigned int five_ms;

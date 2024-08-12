@@ -56,9 +56,9 @@ def main():
                             print('Vry = ', int(Vry_global)*3.3/1023, '\n')
 
                 elif state == 3:
-                    A = s.readline().decode().strip()
-                    if (A == '3'):
-                        print('Command 3 received- Calibrate step motor')
+                    numsteps = s.readline().decode().strip()
+                    # phy = 360 / int(numsteps)
+                    # print('Number of steps = ', numsteps, ' Phy = ', phy)
 
                 elif state == 4:
                     break
@@ -67,6 +67,11 @@ def main():
                     A = s.readline().decode().strip()
                     if (A == '5'):
                         print('Script 1 received')
+
+                elif state == 8:        #Upload Script 1 completed
+                    A = s.readline().decode().strip()
+                    if (A == '8'):
+                        print('Script 1 Finished running')
 
 
                 if (s.in_waiting == 0):

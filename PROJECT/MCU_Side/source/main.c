@@ -22,7 +22,6 @@ void main(void){
 
 	case state1: //Control step motor with Joystick
 	    StepMotor_by_Joystick();
-	    state = state8;
 	    break;
 
 	case state2:
@@ -35,6 +34,8 @@ void main(void){
 	    break;
 	case state6:
 	    scriptEx(0x1000);
+        UCA0TXBUF = '8';
+        IE2 |= UCA0TXIE;
 	    state = state8;
 		
 	}

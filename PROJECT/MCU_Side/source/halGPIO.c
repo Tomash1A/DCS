@@ -16,7 +16,8 @@ int char_from_pc ;
 const unsigned int timer_half_sec = 65535;
 unsigned int Vrx_global = 0x0000;
 unsigned int Vry_global = 0x0000;
-unsigned int phy_global;
+double phy_global = 0.88; //one step equals to phy_global degrees
+double heading_global = 0;  // what is the heading of the motor, in degrees, where the blue line is referred as 0.
 int calib_flag = 0;
 
 
@@ -93,8 +94,8 @@ void ADC_Joystick_sample(unsigned int* Vrx_result, unsigned int* Vry_result) {
         __bis_SR_register(LPM0_bits + GIE);  // Enter LPM0 with interrupts enabled
     }
     for(iterator = 0; iterator<4; iterator++){
-        Vrx_temp += adc_results[iterator *4];
-        Vry_temp += adc_results[3 +iterator *4];
+        Vry_temp += adc_results[iterator *4];
+        Vrx_temp += adc_results[3 +iterator *4];
     }
 
     Vrx_global= (Vrx_temp >> 2) + 1;    //+1 for PC_side code (crashes at 0).
@@ -145,27 +146,32 @@ void timer_call_counter(int delay){
 
 void step_motor_mover(){
     if((Vrx_global >= 0x027F) && (Vrx_global <= 0x02FF)){
-        clockwise_step(20);
+        counter_clockwise_step(20);
     }
     else if((Vrx_global >= 0x02FF) && (Vrx_global <= 0x03FF)){
-        clockwise_step(8);
+        counter_clockwise_step(8);
     }
     //counter clock wise
     else if((Vrx_global >= 0x0100) && (Vrx_global <= 0x0180)){
-        counter_clockwise_step(20);
+        clockwise_step(20);
     }
     else if((Vrx_global >= 0x0000) && (Vrx_global <= 0x0100)){
-        counter_clockwise_step(8);
+        clockwise_step(8);
     }
 }
 
-void clockwise_step(unsigned int t){
-    phase(Phase_A, t);
-    phase(Phase_D, t);
+void counter_clockwise_step(int t){
     phase(Phase_C, t);
     phase(Phase_B, t);
+    phase(Phase_A, t);
+    phase(Phase_D, t);
+    heading_global -= phy_global;
+    if(heading_global < 0){
+        heading_global += 360;
+    }
 }
-void clockwise_half_step(int t){
+
+void counter_clockwise_half_step(int t){
     phase(Phase_D, t);
     phase(Phase_D+Phase_C, t);
     phase(Phase_C, t);
@@ -174,13 +180,36 @@ void clockwise_half_step(int t){
     phase(Phase_B+Phase_A, t);
     phase(Phase_A, t);
     phase(Phase_A+Phase_D, t);
+    heading_global -= (phy_global/2);
+    if(heading_global < 0){
+        heading_global += 360;
+    }
 }
 
-void counter_clockwise_step(int t){
+void clockwise_step(unsigned int t){
     phase(Phase_D, t);
     phase(Phase_A, t);
     phase(Phase_B, t);
     phase(Phase_C, t);
+    heading_global += phy_global;
+    if(heading_global >= 360){
+        heading_global -= 360;
+    }
+}
+
+void clockwise_half_step(int t){
+    phase(Phase_A+Phase_D, t);
+    phase(Phase_A, t);
+    phase(Phase_B+Phase_A, t);
+    phase(Phase_B, t);
+    phase(Phase_C+Phase_B, t);
+    phase(Phase_C, t);
+    phase(Phase_D+Phase_C, t);
+    phase(Phase_D, t);
+    heading_global += (phy_global/2);
+    if(heading_global >= 360){
+        heading_global -= 360;
+    }
 }
 
 void phase(unsigned int phase, int t){
@@ -189,6 +218,36 @@ void phase(unsigned int phase, int t){
     StepMotorPortOut &= ~phase;
 }
 
+
+void stepper_deg(int arg){
+    double diff = heading_global - arg; //X - Y
+    while(((diff > phy_global) && (diff > 0)) || ((diff < phy_global) && (diff < 0))){
+        diff = heading_global - arg;
+        if(diff > 0){                           // (X-Y > 0)
+                if(diff <180){
+                    counter_clockwise_step(8);
+                }
+                else{
+                    clockwise_step(8);
+                }
+            }
+        else if(diff < 0){                      // (X-Y < 0)
+            if(diff < -180){
+                counter_clockwise_step(8);
+            }
+            else{
+                clockwise_step(8);
+            }
+        }
+    }
+}
+
+void stepper_scan(int a1, int a2){
+    stepper_deg(a1);
+//    LCD_PUTS(A1)
+    stepper_deg(a2);
+//    LCD_PUTS(A2)
+}
 //---------------------------------------------------------------------
 //            Enter from LPM0 mode (part of timer
 //---------------------------------------------------------------------
@@ -217,8 +276,9 @@ void disable_interrupts(){
 
 
 void send_num_steps_to_pc(int num){
-   UCA0TXBUF = num;
-   IE2 |= UCA0TXIE;
+   char num_as_str[4];
+   int2str(num_as_str, num);
+   uart_puts(num_as_str);
 }
 //----------------------------------------------------------------------
 //                          FLASH Functions
@@ -289,7 +349,6 @@ void scriptEx(int flash_address){
         case 0x03:
             arg1 = *(flash_ptr + i);
             Rotate_right(arg1);
-//            Rotate_right(arg1);
             break;
         case 0x04: // set_delay
             arg1 = *(flash_ptr + i);
@@ -301,25 +360,13 @@ void scriptEx(int flash_address){
             break;
         case 0x06: // servo_de
             arg1 = *(flash_ptr + i);
-            i++;        //only this incremnet is needed because this func has two arguments
-//            arg1 = *(flash_ptr+i);
-//            posInput = arg1 / 3; // posInput is in index
-//            posInput = (posInput == MEAS_NUM) ? (MEAS_NUM-1) : posInput; // If arg1 is 180 degree
-//            rotateToPosGrad(posInput);
-//            sendAck();
-//            telemeter();
-//            delayWrapper(lon);
+            stepper_deg(arg1);
             break;
         case 0x07: // servo_scan
             arg1 = *(flash_ptr + i);
-//            arg1 = *(pnt+i) / 3;
-//            i++;
-//            i++;
-//            arg1 = word_from_flash(flash_ptr);
-//            arg2 = *(pnt+i) / 3;
-//            arg2 = (arg2 == MEAS_NUM) ? (MEAS_NUM-1) : arg2; // If arg2 is 180 degree
-//            servo_scan(arg1, arg2);
-//            delayWrapper(lon);
+            i++;
+            arg2 = *(flash_ptr + i);
+            stepper_scan(arg1, arg2);
             break;
         case 0x08: // sleep
             return; // Exit function - Back to state7
@@ -328,6 +375,7 @@ void scriptEx(int flash_address){
         }
         i++;
     }
+
     finish_flag = 0; // Reset flag for communication
 }
 
@@ -497,7 +545,6 @@ void delay(unsigned int t){  //
     }
     //state3- calibrate phy mission
     else if((JoystickPBIntPend & JPBMask) && (state==state3)){
-        disable_JPB_interrupt();
         //first click should start step motor, second one should stop it
         //in here it only increments the calib_flag, the rest is done in the function
         calib_flag++;
@@ -598,8 +645,8 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         else if(UCA0RXBUF == '3'){
             state = state3;
             calib_flag = 0;
-            UCA0TXBUF = '3';
-            IE2 |= UCA0TXIE;    //Return ack to computer, move to state 3
+//            UCA0TXBUF = '3';
+//            IE2 |= UCA0TXIE;    //Return ack to computer, move to state 3
         }
         else if(UCA0RXBUF == '4'){
             state = state8;
@@ -616,8 +663,8 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         }
         else if(UCA0RXBUF == '8'){
             state = state6;
-            UCA0TXBUF = 'F';
-            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
+//            UCA0TXBUF = 'F';
+//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
         //wise guys proofing: (so it wont crash on invalid key)
         else {

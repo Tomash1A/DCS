@@ -28,7 +28,7 @@ def pc_side(inChar, input_file):
     # clear buffers
     s.reset_input_buffer()
     s.reset_output_buffer()
-    print_menu()
+    # print_menu()
     response = 'F'
     phy_step = 0
     Vrx_global, Vry_global = 0, 0
@@ -72,7 +72,7 @@ def pc_side(inChar, input_file):
                     script_test = translate_script_to_machine_code(input_file)
                     s.write(script_test)  # Send user choice to the MSP430
                     print("State 5- Upload Script 1 to flash")
-                    break
+                    #    enableTX = False   #another optional ways of breaking the loop
                 elif inChar == '6':
                     state = 6
                     s.write(bytesChar)  # Send user choice to the MSP430
@@ -80,7 +80,7 @@ def pc_side(inChar, input_file):
                     script_test = translate_script_to_machine_code(input_file)
                     s.write(script_test)  # Send user choice to the MSP430
                     print("State 6- Upload Script 2 to flash")
-                    break
+
                 elif inChar == '7':
                     state = 7
                     s.write(bytesChar)  # Send user choice to the MSP430
@@ -88,22 +88,22 @@ def pc_side(inChar, input_file):
                     script_test = translate_script_to_machine_code(input_file)
                     s.write(script_test)  # Send user choice to the MSP430
                     print("State 7- Upload Script 3 to flash")
-                    break
+
                 elif inChar == '8':
                     s.write(bytesChar)  # Send user choice to the MSP430
                     state = 8
                     print("State 8- run Script 1")
-                    break
+
                 elif inChar == '9':
                     s.write(bytesChar)  # Send user choice to the MSP430
                     state = 9
                     print("State 9- run Script 2")
-                    break
+
                 elif inChar == '10':
                     s.write(bytesChar)  # Send user choice to the MSP430
                     state = 10
                     print("State 10- run Script 3")
-                    break
+
 
 
                 else:
@@ -125,7 +125,11 @@ def pc_side(inChar, input_file):
                 continue
 
             elif state == 1:
-                break
+                A = s.readline().decode().strip()
+                if (A == '1'):
+                    print("step motor control ack")
+                    break
+
 
             elif state == 2:
                 voltages = s.readline().decode().strip()
@@ -142,6 +146,9 @@ def pc_side(inChar, input_file):
                         print('Vry = ', Vry_global, '\n')
 
             elif state == 3:
+                numsteps = s.readline().decode().strip()
+                print("Number of steps = ", numsteps)
+                state = 0
                 break
 
             elif state == 4:
@@ -162,10 +169,15 @@ def pc_side(inChar, input_file):
                 if (A == '7'):
                     print('Script 3 received')
                     break
+            elif state == 8:  # Upload Script 3
+                A = s.readline().decode().strip()
+                if (A == '8'):
+                    print('Script 1 finished running on MCU')
+                    break
             if (s.in_waiting == 0):
                 enableTX = True
-
-        break
+        if (state != 3 ):
+            break
     # Close the serial connection
     s.close()
 
@@ -190,10 +202,11 @@ def on_sidebar_select(window_title):
         script_mode()
     elif window_title == "Paint":
         painter()
-    elif window_title == "Calibrate step motor":
-        clear_frame(main_frame)
+    elif window_title == "Calibrate step":
+        pc_side('3',input_file)
     elif window_title == "Control step motor":
-        clear_frame(main_frame)
+        pc_side('1',input_file)
+
 
 def upload_script(window_title):
     global input_file, output_file
@@ -202,17 +215,14 @@ def upload_script(window_title):
         filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
     )
     if window_title == "Upload script 1":
-        print("upload_script1")
-        output_file = r"C:\Users\user1\University_ 4th year\DCS\PROJECT\PC_Side\script_1_out.txt"
+        output_file = r'C:\Users\user1\University_ 4th year\DCS\PROJECT\PC_Side\script_1_out.txt'
         translate_file(input_file, output_file)
         pc_side('5', input_file)
     elif window_title == "Upload script 2":
-        print("upload_script2")
         output_file = "C:\DCS_project_script_files\scripts\script2.txt"
         translate_file(input_file, output_file)
         pc_side('6', input_file)
     elif window_title == "Upload script 3":
-        print("upload_script3")
         output_file = "C:\DCS_project_script_files\scripts\script3.txt"
         translate_file(input_file, output_file)
         pc_side('7', input_file)
@@ -220,7 +230,6 @@ def upload_script(window_title):
 def run_script(window_title):
     input_file = "C:\DCS_project_script_files\scripts\script1.txt"
     if window_title == "Run script 1":
-        print("run_script1")
         pc_side('8', input_file)
     elif window_title == "Run script 2":
         print("run_script2")
@@ -254,38 +263,38 @@ def script_mode():
     main_frame.pack(fill="both", expand=True)
 
     # script1
-    ctk.CTkLabel(master=main_frame,  font=("Roboto Medium", 18)).place(relx=0.2, rely=0.10, anchor=ctk.CENTER)
-    upload_script_1_button = ctk.CTkButton(master=main_frame, text="Upload script 1", command=lambda: upload_script("Upload script 1"), border_color='black', border_width=2, font=("Roboto Medium", 24), text_color='white')
+    ctk.CTkLabel(master=main_frame,  font=("Algerian", 18)).place(relx=0.2, rely=0.10, anchor=ctk.CENTER)
+    upload_script_1_button = ctk.CTkButton(master=main_frame, text="Upload script 1", command=lambda: upload_script("Upload script 1"), border_color='black', border_width=2, font=("Algerian", 24), text_color='white')
     upload_script_1_button.place(relx=0.3, rely=0.2, relwidth=0.3, relheight=0.08, anchor=ctk.CENTER)
 
     # script2
-    ctk.CTkLabel(master=main_frame,  font=("Roboto Medium", 18)).place(relx=0.2, rely=0.10, anchor=ctk.CENTER)
-    upload_script_2_button = ctk.CTkButton(master=main_frame, text="Upload script 2", command=lambda: upload_script("Upload script 2"), border_color='black', border_width=2, font=("Roboto Medium", 24), text_color='white')
+    ctk.CTkLabel(master=main_frame,  font=("Algerian", 18)).place(relx=0.2, rely=0.10, anchor=ctk.CENTER)
+    upload_script_2_button = ctk.CTkButton(master=main_frame, text="Upload script 2", command=lambda: upload_script("Upload script 2"), border_color='black', border_width=2, font=("Algerian", 24), text_color='white')
     upload_script_2_button.place(relx=0.3, rely=0.3, relwidth=0.3, relheight=0.08, anchor=ctk.CENTER)
 
     # script3
-    ctk.CTkLabel(master=main_frame,  font=("Roboto Medium", 18)).place(relx=0.2, rely=0.10, anchor=ctk.CENTER)
-    upload_script_3_button = ctk.CTkButton(master=main_frame, text="Upload script 3", command=lambda: upload_script("Upload script 3"), border_color='black', border_width=2, font=("Roboto Medium", 24), text_color='white')
+    ctk.CTkLabel(master=main_frame,  font=("Algerian", 18)).place(relx=0.2, rely=0.10, anchor=ctk.CENTER)
+    upload_script_3_button = ctk.CTkButton(master=main_frame, text="Upload script 3", command=lambda: upload_script("Upload script 3"), border_color='black', border_width=2, font=("Algerian", 24), text_color='white')
     upload_script_3_button.place(relx=0.3, rely=0.4,relwidth=0.3, relheight=0.08, anchor=ctk.CENTER)
 
 
     # run script 1
-    start_train_button = ctk.CTkButton(master=main_frame, text="Run script 1", command= lambda:run_script("Run script 1"), fg_color="chocolate1",border_color='black', border_width=3, font=("Roboto Medium", 24, "bold"), text_color='white')
+    start_train_button = ctk.CTkButton(master=main_frame, text="Run script 1", command= lambda:run_script("Run script 1"), fg_color="chocolate1",border_color='black', border_width=3, font=("Algerian", 24, "bold"), text_color='white')
     start_train_button.place(relx=0.7, rely=0.2, relwidth=0.3, relheight=0.08, anchor=ctk.CENTER)
 
     # run script 2
-    start_train_button = ctk.CTkButton(master=main_frame, text="Run script 2", command= lambda:run_script("Run script 2"), fg_color="chocolate1",border_color='black', border_width=3, font=("Roboto Medium", 24, "bold"), text_color='white')
+    start_train_button = ctk.CTkButton(master=main_frame, text="Run script 2", command= lambda:run_script("Run script 2"), fg_color="chocolate1",border_color='black', border_width=3, font=("Algerian", 24, "bold"), text_color='white')
     start_train_button.place(relx=0.7, rely=0.3, relwidth=0.3, relheight=0.08, anchor=ctk.CENTER)
 
     # run script 3
-    start_train_button = ctk.CTkButton(master=main_frame, text="Run script 3", command= lambda:run_script("Run script 3"), fg_color="chocolate1",border_color='black', border_width=3, font=("Roboto Medium", 24, "bold"), text_color='white')
+    start_train_button = ctk.CTkButton(master=main_frame, text="Run script 3", command= lambda:run_script("Run script 3"), fg_color="chocolate1",border_color='black', border_width=3, font=("Algerian", 24, "bold"), text_color='white')
     start_train_button.place(relx=0.7, rely=0.4, relwidth=0.3, relheight=0.08, anchor=ctk.CENTER)
 
 def painter():
     class PaintApp:
         def __init__(self, root):
             self.root = root
-            self.root.title("Paint App")
+            self.root.title("Joystick Controlled Paint App")
 
             # Initialize the state: 0 - pen, 1 - eraser, 2 - pointer
             self.state = 0
@@ -363,39 +372,13 @@ def translate_file(input_file, output_file):
         for hex_code in hex_codes:
             outfile.write(hex_code + '\n')
 
-def select_script1():
-    input_file =filedialog.askopenfilename(
-    title="Select a text file",
-    filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
-)
-    output_file = "C:\DCS_project_script_files\scripts\script1.txt"
-    translate_file(input_file, output_file)
-    pc_side('5',input_file)
-
-def select_script2():
-    input_file =filedialog.askopenfilename(
-    title="Select a text file",
-    filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
-)
-    output_file = "C:\DCS_project_script_files\scripts\script2.txt"
-    translate_file(input_file, output_file)
-    pc_side('6',input_file)
-
-def select_script3():
-    input_file =filedialog.askopenfilename(
-    title="Select a text file",
-    filetypes=(("Text files", "*.txt"), ("All files", "*.*"))
-)
-    output_file = "C:\DCS_project_script_files\scripts\script3.txt"
-    translate_file(input_file, output_file)
-    pc_side('7',input_file)
 
 def change_appearance_mode(new_appearance_mode):
     ctk.set_appearance_mode(new_appearance_mode)
 
 screen_width, screen_height = get_screen_size()
-ctk.set_appearance_mode("light")
-ctk.set_default_color_theme("blue")
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("green")
 
 root = ctk.CTk()
 root.title('DCS project')
@@ -409,23 +392,23 @@ sidebar.pack(side="left", fill="y")
 main_frame = ctk.CTkFrame(master=root)
 main_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-script_mode_button = ctk.CTkButton(master=sidebar, text="Script", command=lambda: on_sidebar_select("Script"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Roboto Medium", 20))
-script_mode_button.pack(pady=10)
+script_mode_button = ctk.CTkButton(master=sidebar, text="             Script            ", command=lambda: on_sidebar_select("Script"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Algerian", 20))
+script_mode_button.pack(pady=20)
 
-paint_mode_button = ctk.CTkButton(master=sidebar, text="Paint", command=lambda: on_sidebar_select("Paint"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Roboto Medium", 20))
-paint_mode_button.pack(pady=10)
+paint_mode_button = ctk.CTkButton(master=sidebar, text="              Paint             ", command=lambda: on_sidebar_select("Paint"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Algerian", 20))
+paint_mode_button.pack(pady=20)
 
-callibrate_step_motor_button = ctk.CTkButton(master=sidebar, text="Calibrate step motor", command=lambda: on_sidebar_select("Calibrate step motor"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Roboto Medium", 20))
-callibrate_step_motor_button.pack(pady=10)
+callibrate_step_motor_button = ctk.CTkButton(master=sidebar, text="     Calibrate step     ", command=lambda: on_sidebar_select("Calibrate step"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Algerian", 20))
+callibrate_step_motor_button.pack(pady=20)
 
-control_step_motor_button = ctk.CTkButton(master=sidebar, text="Control step motor", command=lambda: on_sidebar_select("Control step motor"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Roboto Medium", 20))
-control_step_motor_button.pack(pady=10)
+control_step_motor_button = ctk.CTkButton(master=sidebar, text="Control step motor", command=lambda: on_sidebar_select("Control step motor"), fg_color="dodgerblue", text_color="white", border_color='black', border_width=2, font=("Algerian", 20))
+control_step_motor_button.pack(pady=20)
 
 empty_space = ctk.CTkLabel(master=sidebar, text="")
 empty_space.pack(fill=tk.BOTH, expand=True)
 
 appearance_mode_var = ctk.StringVar(value="Light")
-appearance_mode_label = ctk.CTkLabel(master=sidebar, text="Appearance Mode", font=("Roboto Medium", 12))
+appearance_mode_label = ctk.CTkLabel(master=sidebar, text="Appearance Mode", font=("Algerian", 12))
 appearance_mode_label.pack(padx=10, pady=(0, 5), anchor='w')
 
 light_mode_radio = ctk.CTkRadioButton(master=sidebar, text="Light", variable=appearance_mode_var, value="Light", command=lambda: change_appearance_mode("Light"))

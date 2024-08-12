@@ -59,15 +59,19 @@ void StepMotor_phy_calibration(){
     calib_flag = 0;
     enable_JPB_interrupt();
     __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
-    enable_JPB_interrupt();
     while(calib_flag==1){
         //build an HAL function to move step motor one step in a relatively slow pace
         num_steps++;
         clockwise_step(10);   //t should be no less then 10
     }
-    disable_JPB_interrupt();
-    //    send_num_steps_to_pc(num_steps);
-    state = state8;
+    if(calib_flag == 2){
+        disable_JPB_interrupt();
+        send_num_steps_to_pc(num_steps);
+        state = state8;
+        double num_steps_double = num_steps;
+        phy_global = 360 /  num_steps_double;
+        heading_global = 0;
+    }
 }
 
 void upload_script_1(){
