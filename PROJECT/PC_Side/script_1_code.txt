@@ -1,0 +1,9 @@
+set_delay 20
+inc_lcd 10
+dec_lcd 10
+set_delay 99
+inc_lcd 3
+dec_lcd 3
+set_delay 40
+rra_lcd 10
+sleep
