@@ -23,7 +23,6 @@ void main(void){
 	case state1: //Control step motor with Joystick
 	    StepMotor_by_Joystick();
 	    break;
-
 	case state2:
 	    send_JS_data_to_comp();
 	    break;
@@ -32,11 +31,28 @@ void main(void){
 	case state5:
 	    upload_script_1();
 	    break;
-	case state6:
-	    scriptEx(0x1000);
-        UCA0TXBUF = '8';
-        IE2 |= UCA0TXIE;
-	    state = state8;
+    case state6:
+        scriptEx(0x1000);
+        uart_puts("8");
+        state = state8;
+        break;
+    case state7:
+        upload_script_2();
+        break;
+    case state9:
+        upload_script_3();
+        break;
+    case state10:
+        scriptEx(0x1040);
+        uart_puts("9");
+        state = state8;
+        break;
+    case state11:
+        scriptEx(0x1080);
+        uart_puts("A");
+        state = state8;
+        break;
+
 		
 	}
   }

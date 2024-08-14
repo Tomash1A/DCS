@@ -16,7 +16,7 @@ int char_from_pc ;
 const unsigned int timer_half_sec = 65535;
 unsigned int Vrx_global = 0x0000;
 unsigned int Vry_global = 0x0000;
-double phy_global = 0.88; //one step equals to phy_global degrees
+double phy_global = 0.70; //one step equals to phy_global degrees
 double heading_global = 0;  // what is the heading of the motor, in degrees, where the blue line is referred as 0.
 int calib_flag = 0;
 
@@ -29,6 +29,11 @@ volatile unsigned char sampling_complete = 0;
 //For script states:
 static unsigned int flash_address_script_1 = 0x1000;
 int upload_scr_1_completed = 0;
+static unsigned int flash_address_script_2 = 0x1040;
+int upload_scr_2_completed = 0;
+static unsigned int flash_address_script_3 = 0x1080;
+int upload_scr_3_completed = 0;
+
 //unsigned int reset_flag= 0;
 
 //--------------------------------------------------------------------
@@ -301,7 +306,15 @@ void write_char_to_flash(char rx_char, int flash_address) {
         FCTL3 = FWKEY | LOCK;
     }
     else{
-       upload_scr_1_completed = 1;
+        if(state == state5){
+            upload_scr_1_completed = 1;
+        }
+        else if(state == state7){
+            upload_scr_2_completed = 1;
+        }
+        else if(state == state9){
+            upload_scr_3_completed = 1;
+        }
     }
 }
 
@@ -313,9 +326,9 @@ void erase_segment(int address){
     FCTL3 = FWKEY;
     FCTL1 = FWKEY | ERASE;
     *flash_ptr = 0;
-    FCTL1 = FWKEY | WRT;
-    for(i = 0; i < 0x0050; i++)
-        *flash_ptr++ = 0XFF;
+//    FCTL1 = FWKEY | WRT;
+//    for(i = 0; i < 0x0020; i++)
+//        *flash_ptr++ = 0XFF;
     FCTL1 = FWKEY;
     FCTL3 = FWKEY | LOCK;
 }
@@ -333,8 +346,6 @@ void scriptEx(int flash_address){
     int arg1;
     int arg2;
     while((i < 70) && (finish_flag ==0)){  //execute ten
-//        command = *(flash_ptr+i);
-//        command = (*(flash_ptr+i) << 8) | *(flash_ptr+i+1);
         command = *(flash_ptr + i);
         i++;
         switch(command){
@@ -369,13 +380,15 @@ void scriptEx(int flash_address){
             stepper_scan(arg1, arg2);
             break;
         case 0x08: // sleep
-            return; // Exit function - Back to state7
+            finish_flag = 1;
+            break;
+//            return; // Exit function - Back to state7
         case 0xFF:
             finish_flag = 1;
+            break;
         }
         i++;
     }
-
     finish_flag = 0; // Reset flag for communication
 }
 
@@ -661,8 +674,30 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
 //            UCA0TXBUF = 'F';
 //            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
+        else if(UCA0RXBUF == '6'){
+            state = state7;
+            flash_address_script_2 = 0x1040;
+            erase_segment(flash_address_script_2);
+            upload_scr_2_completed = 0;
+        }
+        else if(UCA0RXBUF == '7'){
+            state = state9;
+            flash_address_script_3 = 0x1080;
+            erase_segment(flash_address_script_3);
+            upload_scr_3_completed = 0;
+        }
         else if(UCA0RXBUF == '8'){
             state = state6;
+//            UCA0TXBUF = 'F';
+//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
+        }
+        else if(UCA0RXBUF == '9'){
+            state = state10;
+//            UCA0TXBUF = 'F';
+//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
+        }
+        else if(UCA0RXBUF == 'A'){
+            state = state11;
 //            UCA0TXBUF = 'F';
 //            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
@@ -678,6 +713,14 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         if ((state == state5) && (upload_scr_1_completed == 0)){
                 write_char_to_flash(UCA0RXBUF, flash_address_script_1);
                 flash_address_script_1++;
+        }
+        else if ((state == state7) && (upload_scr_2_completed == 0)){
+                write_char_to_flash(UCA0RXBUF, flash_address_script_2);
+                flash_address_script_2++;
+        }
+        else if ((state == state9) && (upload_scr_3_completed == 0)){
+                write_char_to_flash(UCA0RXBUF, flash_address_script_3);
+                flash_address_script_3++;
         }
 //        else{   // will use states 6-10 for other scripts
 //            break;

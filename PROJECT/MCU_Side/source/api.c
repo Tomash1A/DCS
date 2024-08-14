@@ -83,6 +83,23 @@ void upload_script_1(){
     }
 }
 
+void upload_script_2(){
+    //Return ack to computer, when the upload is finished.
+    if(upload_scr_2_completed == 1){
+        state = state8;
+        UCA0TXBUF = '6';
+        IE2 |= UCA0TXIE;
+    }
+}
+
+void upload_script_3(){
+    //Return ack to computer, when the upload is finished.
+    if(upload_scr_3_completed == 1){
+        state = state8;
+        UCA0TXBUF = '7';
+        IE2 |= UCA0TXIE;
+    }
+}
 //-------------------------------------------------------------
 //                Script- 0x01 Count up to argument
 //------------------------------------------------------------

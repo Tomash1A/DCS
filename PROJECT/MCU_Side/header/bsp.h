@@ -5,7 +5,7 @@
 
 
 
-#define   debounceVal      10000
+#define   debounceVal      20000
 
 
 // RGB abstraction

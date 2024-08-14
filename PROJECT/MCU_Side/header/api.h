@@ -15,6 +15,8 @@ extern void change_delay_time();
 extern void Paint();
 extern void send_JS_data_to_comp();
 extern void upload_script_1();
+extern void upload_script_2();
+extern void upload_script_3();
 #endif
 
 

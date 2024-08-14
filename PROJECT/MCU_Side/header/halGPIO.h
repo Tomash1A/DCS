@@ -17,6 +17,8 @@ extern int calib_flag;
 extern unsigned int hundred_ms;
 extern unsigned int five_ms;
 extern unsigned int flash_address_script_1;
+extern unsigned int flash_address_script_2;
+extern unsigned int flash_address_script_3;
 #define half_sec 500;
 #define clk_tmp 131; // ( (2^20) / 8 )*(10^-3) to convert ms to counter value for TACCR0
 #define SAMPLES_PER_CHANNEL 8   // Define the number of samples per channel
@@ -24,6 +26,8 @@ extern unsigned int flash_address_script_1;
 extern volatile unsigned int adc_results[TOTAL_SAMPLES];
 
 extern int upload_scr_1_completed;
+extern int upload_scr_2_completed;
+extern int upload_scr_3_completed;
 extern void uart_putc(unsigned char c);
 extern void uart_puts(const char* str);
 
