@@ -14,7 +14,7 @@ def main():
         # clear buffers
         s.reset_input_buffer()
         s.reset_output_buffer()
-        print_menu()
+        # print_menu()
         response = 'F'
         phy_step = 0
         Vrx_global, Vry_global = 0, 0
@@ -42,18 +42,10 @@ def main():
                         print('Command 1 received- Control step motor with Joystick')
 
                 elif state == 2:
-                    voltages = s.readline().decode().strip()
-                    if voltages == 'P':
-                        print('JPB was pushed!')
-                    else:
-                        if Vx_Vy_flag == 0:
-                            Vrx_global = voltages
-                            Vx_Vy_flag = 1
-                            print('Vrx = ', int(Vrx_global)*3.3/1023)
-                        elif Vx_Vy_flag == 1:
-                            Vry_global = voltages
-                            Vx_Vy_flag = 0
-                            print('Vry = ', int(Vry_global)*3.3/1023, '\n')
+                    voltages = s.readline().decode().strip().split(':')
+                    s.write(bytes('x','ascii'))
+                    print(voltages)
+
 
                 elif state == 3:
                     numsteps = s.readline().decode().strip()
@@ -96,6 +88,7 @@ def main():
                         state = 2
                         response = '2'
                         print("State 2- Receive Joystick voltage")
+                        s.write(bytes('x', 'ascii'))
                     elif inChar == '3':
                         s.write(bytesChar)  # Send user choice to the MSP430
                         state = 3

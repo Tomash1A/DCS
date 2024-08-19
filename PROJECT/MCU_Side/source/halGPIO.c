@@ -16,6 +16,8 @@ int char_from_pc ;
 const unsigned int timer_half_sec = 65535;
 unsigned int Vrx_global = 0x0000;
 unsigned int Vry_global = 0x0000;
+unsigned int JPB_counter = 0;
+unsigned int PC_ready = 0;
 double phy_global = 0.70; //one step equals to phy_global degrees
 double heading_global = 0;  // what is the heading of the motor, in degrees, where the blue line is referred as 0.
 int calib_flag = 0;
@@ -127,6 +129,33 @@ void int2str(char *str, unsigned int num){
     strSize += len;
     str[strSize] = '\0';
 }
+
+
+void voltage2str(char *str, unsigned int Vx, unsigned int Vy, unsigned int JPB) {
+    unsigned int values[] = {Vx, Vy, JPB};
+    int strIndex = 0;
+    int i = 0 ;
+    for (i = 0; i < 3; i++) {
+        unsigned int value = values[i];
+        char buffer[10];
+        int bufIndex = 0;
+
+        // Convert integer to string
+        do {
+            buffer[bufIndex++] = (value % 10) + '0';
+            value /= 10;
+        } while (value > 0);
+
+        // Reverse and copy to output string
+        while (bufIndex > 0) {
+            str[strIndex++] = buffer[--bufIndex];
+        }
+
+        // Add separator (':' or '\0' for the last value)
+        str[strIndex++] = (i < 2) ? ':' : '\0';
+    }
+}
+
 //----------------------Count Timer Calls---------------------------------
 void timer_call_counter(int delay){
 
@@ -552,8 +581,9 @@ void delay(unsigned int t){  //
     if((JoystickPBIntPend & JPBMask) && (state==state2)){
         //should transmit the click and let the computer deal with it
         JoystickPBIntPend &= ~JPBMask;
-        UCA0TXBUF = 'P';
-        IE2 |= UCA0TXIE;
+        JPB_counter = (JPB_counter + 1) % 3;
+//        UCA0TXBUF = 'P';
+//        IE2 |= UCA0TXIE;
 
     }
     //state3- calibrate phy mission
@@ -642,7 +672,7 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
 #error Compiler not supported!
 #endif
 {
-    if((state==state8) || (state==state1) ||(state==state2) ||(state==state3) ||(state==state4)){    //If states 0-4
+    if((state==state8) || (state==state1) || (state==state2) ||(state==state3) ||(state==state4)){    //If states 0-4
 //    if(receiving_script==0){
         if(UCA0RXBUF == '1'){
             state = state1;
@@ -650,6 +680,8 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
             IE2 |= UCA0TXIE;
         }
         else if(UCA0RXBUF == '2'){
+            JPB_counter = 0;
+            PC_ready = 0;
             state = state2;
             UCA0TXBUF = '2';
             IE2 |= UCA0TXIE;    //Notify PC side that Joystick voltage is arriving, by sending "2"
@@ -658,9 +690,8 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         else if(UCA0RXBUF == '3'){
             state = state3;
             calib_flag = 0;
-//            UCA0TXBUF = '3';
-//            IE2 |= UCA0TXIE;    //Return ack to computer, move to state 3
         }
+
         else if(UCA0RXBUF == '4'){
             state = state8;
             UCA0TXBUF = 'F';
@@ -696,6 +727,9 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
 //            UCA0TXBUF = 'F';
 //            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
+        else if(UCA0RXBUF == 'x'){
+            PC_ready = 1;
+        }
         else if(UCA0RXBUF == 'A'){
             state = state11;
 //            UCA0TXBUF = 'F';
@@ -722,9 +756,9 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
                 write_char_to_flash(UCA0RXBUF, flash_address_script_3);
                 flash_address_script_3++;
         }
-//        else{   // will use states 6-10 for other scripts
-//            break;
-//        }
+        else{   // will use states 6-10 for other scripts
+            state = state8;
+        }
     }
 
     switch(lpm_mode){
@@ -747,15 +781,3 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
 }
 
 
-//*********************************************************************
-//                         RESET ISR
-//*********************************************************************
-//#pragma vector = RESET_VECTOR
-//__interrupt void RESET_ISR (void)
-//{
-//    state = state8;  // start in idle state on RESET
-//    lpm_mode = mode0;     // start in idle state on RESET
-//    reset_flag = 1;
-//    sysConfig();     // Configure GPIO, Stop Timers, Init LCD
-//
-//}

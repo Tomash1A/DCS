@@ -9,6 +9,7 @@
 char ascii_char[3] = "";
 int num_steps = 0;
 char Vrx_char[6], Vry_char[6];
+char V_total_char[12];
 
 void Paint(){
     //objectives:
@@ -25,13 +26,13 @@ void send_JS_data_to_comp(){
     enable_JPB_interrupt();
 
     while(state==state2){
-        ADC_Joystick_sample();
-        int2str(Vrx_char, Vrx_global);
-        uart_puts(Vrx_char);
+        if(PC_ready == 1){
+            ADC_Joystick_sample();
+            voltage2str(V_total_char,Vrx_global,Vry_global, JPB_counter);
+            uart_puts(V_total_char);
+            PC_ready = 0 ;
+        }
 //        timer_call_counter(hundred_ms);  //give PC time to get 'ack' on '2'
-        int2str(Vry_char, Vry_global);
-        uart_puts(Vry_char);
-        timer_call_counter(hundred_ms);  //give PC time to get 'ack' on '2'
     }
     disable_JPB_interrupt();
 }
