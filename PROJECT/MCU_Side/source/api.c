@@ -61,33 +61,15 @@ void StepMotor_phy_calibration(){
         heading_global = 0;
     }
 }
-
-void upload_script_1(){
+void upload_script(int upload_script_completed, char tx_char){
     //Return ack to computer, when the upload is finished.
-    if(upload_scr_1_completed == 1){
+    if(upload_script_completed == 1){
         state = state8;
-        UCA0TXBUF = '5';
+        UCA0TXBUF = tx_char;
         IE2 |= UCA0TXIE;
     }
 }
 
-void upload_script_2(){
-    //Return ack to computer, when the upload is finished.
-    if(upload_scr_2_completed == 1){
-        state = state8;
-        UCA0TXBUF = '6';
-        IE2 |= UCA0TXIE;
-    }
-}
-
-void upload_script_3(){
-    //Return ack to computer, when the upload is finished.
-    if(upload_scr_3_completed == 1){
-        state = state8;
-        UCA0TXBUF = '7';
-        IE2 |= UCA0TXIE;
-    }
-}
 //-------------------------------------------------------------
 //                Script- 0x01 Count up to argument
 //------------------------------------------------------------

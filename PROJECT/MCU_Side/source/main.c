@@ -29,7 +29,7 @@ void main(void){
 	case state3:
 	    StepMotor_phy_calibration();
 	case state5:
-	    upload_script_1();
+	    upload_script(upload_scr_1_completed, '5');
 	    break;
     case state6:
         scriptEx(0x1000);
@@ -37,10 +37,10 @@ void main(void){
         state = state8;
         break;
     case state7:
-        upload_script_2();
+        upload_script(upload_scr_2_completed, '6');
         break;
     case state9:
-        upload_script_3();
+        upload_script(upload_scr_3_completed, '7');
         break;
     case state10:
         scriptEx(0x1040);

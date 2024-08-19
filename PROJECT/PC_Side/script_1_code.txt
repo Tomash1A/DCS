@@ -1,2 +1,2 @@
+inc_lcd 16
 stepper_scan 50,254
-rra_lcd 4
