@@ -1,2 +1,2 @@
-stepper_deg 20
-stepper_scan 254,40
+stepper_scan 50,254
+rra_lcd 4

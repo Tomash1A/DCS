@@ -5,21 +5,18 @@
 #include <string.h>
 
 // Global Variables
-char string1[5];
-char string2;
 unsigned int i;
 int j=0;
 unsigned int delay_time = 500;
 unsigned int hundred_ms = 100;
-unsigned int five_ms = 5;
-int char_from_pc ;
 const unsigned int timer_half_sec = 65535;
 unsigned int Vrx_global = 0x0000;
 unsigned int Vry_global = 0x0000;
 unsigned int JPB_counter = 0;
 unsigned int PC_ready = 0;
-double phy_global = 0.70; //one step equals to phy_global degrees
-double heading_global = 0;  // what is the heading of the motor, in degrees, where the blue line is referred as 0.
+int phy_global = 70; //one step equals to phy_global degrees
+unsigned int heading_global = 0;  // what is the heading of the motor, in degrees, where the blue line is referred as 0.
+
 int calib_flag = 0;
 
 
@@ -201,7 +198,7 @@ void counter_clockwise_step(int t){
     phase(Phase_D, t);
     heading_global -= phy_global;
     if(heading_global < 0){
-        heading_global += 360;
+        heading_global += (360*90);
     }
 }
 
@@ -216,7 +213,7 @@ void counter_clockwise_half_step(int t){
     phase(Phase_A+Phase_D, t);
     heading_global -= (phy_global/2);
     if(heading_global < 0){
-        heading_global += 360;
+        heading_global += (360*90);
     }
 }
 
@@ -226,8 +223,8 @@ void clockwise_step(unsigned int t){
     phase(Phase_B, t);
     phase(Phase_C, t);
     heading_global += phy_global;
-    if(heading_global >= 360){
-        heading_global -= 360;
+    if(heading_global >= (360*90)){
+        heading_global -= (360*90);
     }
 }
 
@@ -241,8 +238,8 @@ void clockwise_half_step(int t){
     phase(Phase_D+Phase_C, t);
     phase(Phase_D, t);
     heading_global += (phy_global/2);
-    if(heading_global >= 360){
-        heading_global -= 360;
+    if(heading_global >= (360*90)){
+        heading_global -= (360*90);
     }
 }
 
@@ -254,11 +251,13 @@ void phase(unsigned int phase, int t){
 
 
 void stepper_deg(int arg){
-    double diff = heading_global - arg; //X - Y
+    arg *= 90;
+    int diff = heading_global - arg; //X - Y
+
     while(((diff > phy_global) && (diff > 0)) || ((diff < phy_global) && (diff < 0))){
         diff = heading_global - arg;
         if(diff > 0){                           // (X-Y > 0)
-                if(diff <180){
+                if(diff <(180*90)){
                     counter_clockwise_step(8);
                 }
                 else{
@@ -266,7 +265,7 @@ void stepper_deg(int arg){
                 }
             }
         else if(diff < 0){                      // (X-Y < 0)
-            if(diff < -180){
+            if(diff < -(180*90)){
                 counter_clockwise_step(8);
             }
             else{
@@ -277,10 +276,26 @@ void stepper_deg(int arg){
 }
 
 void stepper_scan(int a1, int a2){
+    lcd_clear();
+    lcd_home();
+    char a1_as_str[3];
+    char a2_as_str[3];
+    int2str(a1_as_str, a1);
+    int2str(a2_as_str, a2);
     stepper_deg(a1);
-//    LCD_PUTS(A1)
+    lcd_puts("Start of scan:");
+    lcd_new_line;
+    lcd_puts(a1_as_str);
     stepper_deg(a2);
-//    LCD_PUTS(A2)
+    lcd_clear();
+    lcd_home();
+    lcd_puts("End of scan:");
+    lcd_new_line;
+    lcd_puts(a2_as_str);
+    timer_call_counter(1000);
+    lcd_clear();
+    lcd_home();
+
 }
 //---------------------------------------------------------------------
 //            Enter from LPM0 mode (part of timer
@@ -355,13 +370,9 @@ void erase_segment(int address){
     FCTL3 = FWKEY;
     FCTL1 = FWKEY | ERASE;
     *flash_ptr = 0;
-//    FCTL1 = FWKEY | WRT;
-//    for(i = 0; i < 0x0020; i++)
-//        *flash_ptr++ = 0XFF;
     FCTL1 = FWKEY;
     FCTL3 = FWKEY | LOCK;
 }
-
 
 //----------------------------------------------------------------------
 //                          Exexute Script
@@ -377,21 +388,33 @@ void scriptEx(int flash_address){
     while((i < 70) && (finish_flag ==0)){  //execute ten
         command = *(flash_ptr + i);
         i++;
+        if(command != 0x08){
+            arg1 = *(flash_ptr + i);
+            if(arg1==254){
+                i++;
+                arg1 += *(flash_ptr + i);
+            }
+            i++;
+        }
+        if(command == 0x07){
+            arg2 = *(flash_ptr + i);
+            if(arg2==254){
+                i++;
+                arg2 += *(flash_ptr + i);
+            }
+            i++;
+        }
         switch(command){
         case 0x01:
-            arg1 = *(flash_ptr + i);
             count_up_LCD(arg1);
             break;
         case 0x02:
-            arg1 = *(flash_ptr + i);
             count_down_LCD(arg1);
             break;
         case 0x03:
-            arg1 = *(flash_ptr + i);
             Rotate_right(arg1);
             break;
         case 0x04: // set_delay
-            arg1 = *(flash_ptr + i);
             delay_time = arg1* 10;
             break;
         case 0x05: // clear_lcd
@@ -399,24 +422,19 @@ void scriptEx(int flash_address){
             lcd_home();
             break;
         case 0x06: // servo_de
-            arg1 = *(flash_ptr + i);
             stepper_deg(arg1);
             break;
         case 0x07: // servo_scan
-            arg1 = *(flash_ptr + i);
-            i++;
-            arg2 = *(flash_ptr + i);
             stepper_scan(arg1, arg2);
             break;
         case 0x08: // sleep
             finish_flag = 1;
             break;
-//            return; // Exit function - Back to state7
         case 0xFF:
             finish_flag = 1;
             break;
         }
-        i++;
+//        i++;
     }
     finish_flag = 0; // Reset flag for communication
 }
@@ -673,7 +691,6 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
 #endif
 {
     if((state==state8) || (state==state1) || (state==state2) ||(state==state3) ||(state==state4)){    //If states 0-4
-//    if(receiving_script==0){
         if(UCA0RXBUF == '1'){
             state = state1;
             UCA0TXBUF = '1';    //Send 'ack' to PC by TXing '1'

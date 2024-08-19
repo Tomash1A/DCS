@@ -56,13 +56,58 @@ def translate_script_to_machine_code(path):
                 if function_name == 'stepper_scan':
                     if len(parts) == 2:
                         arg1, arg2 = map(int, parts[1].split(','))  # Split and convert arguments to integers
-                        machine_code.extend([arg1, arg2])
+                        # Split if arguments are greater than 254
+                        for arg in [arg1, arg2]:
+                            while arg >= 254:
+                                machine_code.append(254)
+                                arg -= 254
+                            machine_code.append(arg)
+                    else:
+                        arg = int(parts[1])
+                        # Split if the argument is greater than 254
+                        while arg >= 254:
+                            machine_code.append(254)
+                            arg -= 254
+                        machine_code.append(arg)
                 else:
                     arg = int(parts[1])
+                    # Split if the argument is greater than 254
+                    while arg >= 254:
+                        machine_code.append(254)
+                        arg -= 254
                     machine_code.append(arg)
-    machine_code.append(0xFF)
+    if machine_code[-1] != '08':
+        machine_code.append(0x08)
 
+    machine_code.append(0xFF)
     return machine_code
+
+    # lines = script.strip().split('\n')
+    # machine_code = []
+    # for line in lines:
+    #     parts = line.split()
+    #     if parts:
+    #         function_name = parts[0]
+    #         if function_name not in instruction_map:
+    #             print(f"Unknown function: {function_name}")
+    #             continue
+    #
+    #         # Append the function code to the machine code list
+    #         machine_code.append(instruction_map[function_name])
+    #
+    #         # Append the arguments (if any) to the machine code list
+    #         if len(parts) > 1:
+    #             # For the 'servo_scan' function, we need to handle two arguments separated by a comma
+    #             if function_name == 'stepper_scan':
+    #                 if len(parts) == 2:
+    #                     arg1, arg2 = map(int, parts[1].split(','))  # Split and convert arguments to integers
+    #                     machine_code.extend([arg1, arg2])
+    #             else:
+    #                 arg = int(parts[1])
+    #                 machine_code.append(arg)
+    # machine_code.append(0xFF)
+    #
+    # return machine_code
 
 
 def command_to_hex(command):

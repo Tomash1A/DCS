@@ -3,20 +3,9 @@
 #include "stdio.h"
 
 
-//unsigned int count_up = 0;
-//char count_up_str[5];
-//unsigned int* count_up_address = &count_up;
-char ascii_char[3] = "";
 int num_steps = 0;
-char Vrx_char[6], Vry_char[6];
 char V_total_char[12];
 
-void Paint(){
-    //objectives:
-    //1. send the averaged value of Vrx,y_global to computer relatively fast for updating
-    //2. enable interrupts from JPB so it could change the pens function (write/erase/null)
-
-}
 
 void send_JS_data_to_comp(){
     //objectives:
@@ -24,7 +13,6 @@ void send_JS_data_to_comp(){
     //2. enable interrupts from JPB so it could change the pens function (write/erase/null)
 //    timer_call_counter(hundred_ms);  //give PC time to get 'ack' on '2'
     enable_JPB_interrupt();
-
     while(state==state2){
         if(PC_ready == 1){
             ADC_Joystick_sample();
@@ -69,8 +57,7 @@ void StepMotor_phy_calibration(){
         disable_JPB_interrupt();
         send_num_steps_to_pc(num_steps);
         state = state8;
-        double num_steps_double = num_steps;
-        phy_global = 360 /  num_steps_double;
+        phy_global = (360*90) /  num_steps;
         heading_global = 0;
     }
 }
