@@ -16,7 +16,7 @@ unsigned int JPB_counter = 0;
 unsigned int PC_ready = 0;
 int phy_global = 70; //one step equals to phy_global degrees
 unsigned int heading_global = 0;  // what is the heading of the motor, in degrees, where the blue line is referred as 0.
-
+char heading_str[5];
 int calib_flag = 0;
 
 
@@ -32,7 +32,7 @@ static unsigned int flash_address_script_2 = 0x1040;
 int upload_scr_2_completed = 0;
 static unsigned int flash_address_script_3 = 0x1080;
 int upload_scr_3_completed = 0;
-
+static unsigned int phy_flash = 0x1100;
 //unsigned int reset_flag= 0;
 
 //--------------------------------------------------------------------
@@ -250,29 +250,36 @@ void phase(unsigned int phase, int t){
 }
 
 
-void stepper_deg(int arg){
+void stepper_deg(int arg, int scan_flag){
     arg *= 90;
-    int diff = heading_global - arg; //X - Y
-
-    while(((diff > phy_global) && (diff > 0)) || ((diff < phy_global) && (diff < 0))){
-        diff = heading_global - arg;
-        if(diff > 0){                           // (X-Y > 0)
-                if(diff <(180*90)){
+        int diff = heading_global - arg; //X - Y
+        while(((diff > phy_global) && (diff > 0)) || ((diff < phy_global) && (diff < 0))){
+            if((PC_ready == 1) || scan_flag== 1){
+            diff = heading_global - arg;
+            if(diff > 0){                           // (X-Y > 0)
+                    if(diff <= (180*90)){
+                        counter_clockwise_step(8);
+                    }
+                    else{
+                        clockwise_step(8);
+                    }
+                }
+            else if(diff < 0){                      // (X-Y < 0)
+                if(diff < -(180*90)){
                     counter_clockwise_step(8);
                 }
                 else{
                     clockwise_step(8);
                 }
             }
-        else if(diff < 0){                      // (X-Y < 0)
-            if(diff < -(180*90)){
-                counter_clockwise_step(8);
-            }
-            else{
-                clockwise_step(8);
+            if(scan_flag == 0){
+                int2str(heading_str, heading_global);
+                uart_puts(heading_str);
+                PC_ready = 0;
             }
         }
     }
+
 }
 
 void stepper_scan(int a1, int a2){
@@ -282,11 +289,11 @@ void stepper_scan(int a1, int a2){
     char a2_as_str[3];
     int2str(a1_as_str, a1);
     int2str(a2_as_str, a2);
-    stepper_deg(a1);
+    stepper_deg(a1, 1);
     lcd_puts("Start of scan:");
     lcd_new_line;
     lcd_puts(a1_as_str);
-    stepper_deg(a2);
+    stepper_deg(a2, 1);
     lcd_clear();
     lcd_home();
     lcd_puts("End of scan:");
@@ -388,7 +395,7 @@ void scriptEx(int flash_address){
     while((i < 70) && (finish_flag ==0)){  //execute ten
         command = *(flash_ptr + i);
         i++;
-        if(command != 0x08){
+        if((command != 0x08) && (command != 0x05)){
             arg1 = *(flash_ptr + i);
             if(arg1==254){
                 i++;
@@ -422,10 +429,14 @@ void scriptEx(int flash_address){
             lcd_home();
             break;
         case 0x06: // servo_de
-            stepper_deg(arg1);
+            uart_puts("x");
+            stepper_deg(arg1,0);
+            uart_puts("x");
             break;
         case 0x07: // servo_scan
+//            uart_puts("x");
             stepper_scan(arg1, arg2);
+//            uart_puts("x");
             break;
         case 0x08: // sleep
             finish_flag = 1;
@@ -693,6 +704,7 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
     if((state==state8) || (state==state1) || (state==state2) ||(state==state3) ||(state==state4)){    //If states 0-4
         if(UCA0RXBUF == '1'){
             state = state1;
+            PC_ready = 0;
             UCA0TXBUF = '1';    //Send 'ack' to PC by TXing '1'
             IE2 |= UCA0TXIE;
         }
@@ -736,21 +748,15 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         }
         else if(UCA0RXBUF == '8'){
             state = state6;
-//            UCA0TXBUF = 'F';
-//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
         else if(UCA0RXBUF == '9'){
             state = state10;
-//            UCA0TXBUF = 'F';
-//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
         else if(UCA0RXBUF == 'x'){
             PC_ready = 1;
         }
         else if(UCA0RXBUF == 'A'){
             state = state11;
-//            UCA0TXBUF = 'F';
-//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
         //wise guys proofing: (so it wont crash on invalid key)
         else {
@@ -796,5 +802,4 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         break;
     }
 }
-
 

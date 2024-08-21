@@ -64,6 +64,7 @@ STATE_TITLES = {
     SCRIPT_3_RUN_STATE: (RUN_SCRIPT_3, "Script 3 finished running on MCU")
 }
 
+NUM_SAMPLES_PAINTER = 20
 import threading
 import time
 import tkinter as tk
@@ -72,6 +73,104 @@ import threading
 import time
 import tkinter as tk
 from collections import deque
+
+import time
+import threading
+import tkinter as tk
+import customtkinter as ctk
+import math
+
+import time
+import threading
+import tkinter as tk
+import customtkinter as ctk
+import math
+
+class HeadingVisualizer:
+    IS_HEADING_OPEN = False
+
+    def __init__(self, root, connection):
+        self.root = root
+        # self.main_frame = main_frame
+        self.canvas = ctk.CTkCanvas(self.root, width=400, height=400)
+        self.canvas.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
+        self.heading_text = self.canvas.create_text(200, 200, text="0°", font=("Arial", 36), fill="white")
+        self.heading_value = 0
+        self.latest_heading = 0
+
+        self.heading_conn = connection
+        self.close_conn = False
+
+        self.data_lock = threading.Lock()
+        self.serial_thread = None
+
+
+    def open_new_thread(self):
+        if not HeadingVisualizer.IS_HEADING_OPEN:
+            HeadingVisualizer.IS_HEADING_OPEN = True
+            self.heading_conn.flushInput()
+            time.sleep(0.1)  # Short delay to ensure the connection is ready
+            self.heading_conn.write(b'x')  # Send initial 'h' to start communication
+            time.sleep(0.1)  # Short delay after sending 'h'
+
+            self.serial_thread = threading.Thread(target=self.read_data_continuously)
+            self.serial_thread.daemon = True
+            self.serial_thread.start()
+            self.root.after(10, self.update_heading)
+
+    def read_data_continuously(self):
+        while not self.close_conn:
+            if self.heading_conn.in_waiting > 0:
+                raw_data = self.heading_conn.readline()
+                decoded_data = raw_data.decode().strip()
+                if decoded_data == 'x':
+                    self.close_conn = True
+                    self.root.after(10, self.close)
+                    return
+                else:
+                    try:
+                        # decoded_data = raw_data.decode().strip()
+                        self.latest_heading = (float(decoded_data)/90) %360
+                        with self.data_lock:
+                            self.heading_value = self.latest_heading
+                        self.heading_conn.write(b'x')  # Signal ready for next sample
+                    except Exception as e:
+                        print(f"Error processing data: {e}")
+                        self.heading_conn.write(b'x')  # Signal ready for next sample
+                        if self.close_conn:
+                            break
+                time.sleep(0.01)
+
+
+    def close(self):
+        self.close_conn = True
+        if self.serial_thread and self.serial_thread.is_alive():
+            self.serial_thread.join(timeout=1.0)
+        if self.heading_conn and self.heading_conn.is_open:
+            self.heading_conn.close()
+        self.root.destroy()
+        HeadingVisualizer.IS_HEADING_OPEN = False
+
+    def update_heading(self):
+        if self.close_conn:
+            self.close()
+            return
+        with self.data_lock:
+            self.canvas.itemconfig(self.heading_text, text=f"{int(self.latest_heading)}°")
+            # Draw a heading indicator
+            self.canvas.delete("indicator")
+            radius = 150
+            x = 200 + radius * math.cos(math.radians(self.latest_heading-90))
+            y = 200 + radius * math.sin(math.radians(self.latest_heading-90))
+            self.canvas.create_line(200, 200, x, y, width=3, fill="white", tags="indicator")
+
+        if not self.close_conn:
+            self.root.after(10, self.update_heading)
+        else:
+            self.root.destroy()
+            HeadingVisualizer.IS_HEADING_OPEN = False
+
+
 
 
 class PaintApp:
@@ -93,10 +192,10 @@ class PaintApp:
         self.old_x = self.current_x
         self.old_y = self.current_y
 
-        self.vrx_values = deque(maxlen=50)
-        self.vry_values = deque(maxlen=50)
-        self.vrx_values = deque([1.65 for i in range(50)])
-        self.vry_values = deque([1.65 for i in range(50)])
+        self.vrx_values = deque(maxlen=NUM_SAMPLES_PAINTER)
+        self.vry_values = deque(maxlen=NUM_SAMPLES_PAINTER)
+        self.vrx_values = deque([1.65 for i in range(NUM_SAMPLES_PAINTER)])
+        self.vry_values = deque([1.65 for i in range(NUM_SAMPLES_PAINTER)])
         self.btn_val = 2  # Start in Neutral mode
 
         self.painter_conn = connection
@@ -155,7 +254,7 @@ class PaintApp:
             time.sleep(0.01)
 
     def calculate_movement(self):
-        if len(self.vrx_values) < 50 or len(self.vry_values) < 50:
+        if len(self.vrx_values) < NUM_SAMPLES_PAINTER or len(self.vry_values) < NUM_SAMPLES_PAINTER:
             return 0, 0  # Not enough samples yet
 
         vrx_mean = sum(self.vrx_values) / len(self.vrx_values)
@@ -214,100 +313,7 @@ class PaintApp:
             self.painter_conn.close()
         PaintApp.IS_PAINTER_OPEN = False
 
-# class PaintApp:
-#     IS_PAINTER_OPEN = False
-#
-#     def __init__(self, root, connection):
-#         self.root = root
-#         self.root.title("Joystick Controlled Paint App")    # todo: make as class var
-#
-#         self.canvas = tk.Canvas(self.root, width = 600, height = 400, bg = "white")
-#         print('for debug')
-#         self.canvas.pack()
-#
-#         self.pen_color = "black"
-#         self.pen_size = 2
-#
-#         self.old_x = None
-#         self.old_y = None
-#
-#         self.root.after(10, self.update_paint)
-#
-#         self.vrx_val = 0
-#         self.vry_val = 0
-#         self.btn_val = 0
-#
-#         self.serial_thread = None
-#         self.painter_conn = connection
-#         self.close_conn = False
-#
-#     def open_new_thread(self):
-#         if PaintApp.IS_PAINTER_OPEN:
-#             return
-#         else:
-#             # self.serial_thread = threading.Thread(target=self.read_data())
-#             # self.serial_thread.start()
-#             self.IS_PAINTER_OPEN = True
-#         self.painter_conn.flushInput()
-#         time.sleep(0.01)
-#         self.painter_conn.write(bytes('x','ascii')) #start sending first sample
-#         time.sleep(0.01)
-#
-#
-#         # todo: else - open thread and change PaintApp.IS_PAINTER_OPEN=True
-#
-#     def paint(self, event):
-#         x, y = event.x, event.y
-#         if self.old_x and self.old_y:
-#             self.canvas.create_line(self.old_x, self.old_y, x, y,
-#                                     width = self.pen_size, fill = self.pen_color,
-#                                     capstyle = tk.ROUND, smooth = tk.TRUE)
-#         self.old_x = x
-#         self.old_y = y
-#
-#     def reset(self, event):     # todo: no need for event
-#         self.old_x = None
-#         self.old_y = None
-#
-#     def read_data(self):
-#         if self.painter_conn.in_waiting > 0:
-#             raw_data = self.painter_conn.readline()
-#             try:
-#                 decoded_data = raw_data.decode().strip()
-#                 voltages = decoded_data.split(':')
-#                 if len(voltages) == 3:
-#                     self.vrx_val = float(voltages[0])
-#                     self.vry_val = float(voltages[1])
-#                     self.btn_val = voltages[2]
-#             except Exception as e:
-#                 print(f"Error processing data: {e}")
-#
-#     def update_paint(self):
-#         self.read_data()  # todo: change naming
-#         # Map joystick values to canvas coordinates
-#         x = int((float(self.vrx_val) - 0) * 3.3)    # todo: normalize values
-#         y = int((3.3 - float(self.vry_val)) * 3.3)  # Invert Y-axis # todo: normalize values
-#
-#         if self.btn_val == 'P':
-#             self.paint(type('Event', (), {'x': x, 'y': y})())
-#         else:
-#             self.reset(None)    # todo: no need for None
-#
-#         if self.close_conn:
-#             self.painter_conn.close()
-#             return
-#         time.sleep(0.01)
-#         self.root.after(100, self.update_paint)
-#
-#     def paint_main(self):
-#         # todo: run in thread:
-#         # todo: open communication - uses main communication, initiliazed in init of PaintApp
-#         if self.painter_conn.in_waiting > 0:
-#             self.update_paint()
-#             print(self.vrx_val, self.vry_val, self.btn_val)
-#             self.painter_conn.write(bytes('x', 'ascii'))    #signal to MCU- ready for another sample
-#             self.root.after(100, self.paint_main)
-#
+
 def print_state_msg(state, side):
     print(f"State {state} - {STATE_TITLES[state][side]}")
 
@@ -444,12 +450,13 @@ def transmitter(serial_conn, enableTX, enableRX, state, response, input_file):
 
 
 def receiver(serial_conn, enableRX, state):
+    heading_visualizer = None
+
     while serial_conn.in_waiting > 0 or enableRX:  # while the input buffer isn't empty
         if state == NEUTRAL_STATE:
             print("DEBUG: In neutral state - infinite loop - might remove this 'if' or replace 'continue'")    # todo: remove
             continue
 
-        ## Try threading 19/08
         if state == PAINTER_STATE:
             root = tk.Tk()
             paint_app = PaintApp(root, serial_conn)
@@ -475,15 +482,55 @@ def receiver(serial_conn, enableRX, state):
             break
         elif state == STATE_4:
             break
-        elif ((state in RUN_STATES or state == JOYSTICK_CONTROL_STATE) and serial_conn.in_waiting > 0) or (state in UPLOAD_STATES):
+
+        elif state in RUN_STATES and serial_conn.in_waiting > 0:
+            receiver_buffer = serial_conn.readline().decode().strip()
+            print(receiver_buffer)
+
+            if receiver_buffer == 'x' and not heading_visualizer:
+                root = tk.Tk()
+                heading_visualizer = HeadingVisualizer(root, serial_conn)
+                heading_visualizer.open_new_thread()
+
+                def on_closing():
+                    heading_visualizer.close()
+                    root.destroy()
+
+                root.protocol("WM_DELETE_WINDOW", on_closing)
+                try:
+                    root.mainloop()
+                except Exception as e:
+                    print(f"Error in main loop: {e}")
+                finally:
+                    heading_visualizer.close()
+
+            elif receiver_buffer == 'x' and heading_visualizer:
+                heading_visualizer.close()
+                root.destroy()
+                heading_visualizer = None
+                root = None
+
+
+            elif receiver_buffer != 'x' and not heading_visualizer:
+                print_state_msg(receiver_buffer, RECEIVER_SIDE)
+                break
+
+        elif state == JOYSTICK_CONTROL_STATE and serial_conn.in_waiting > 0:
             receiver_buffer = serial_conn.readline().decode().strip()
             print_state_msg(receiver_buffer, RECEIVER_SIDE)
             break
+
+        elif state in UPLOAD_STATES:
+            receiver_buffer = serial_conn.readline().decode().strip()
+            print_state_msg(receiver_buffer, RECEIVER_SIDE)
+            break
+
         elif state not in STATE_TITLES.keys() or serial_conn.in_waiting <= 0:
             enableRX = True
             time.sleep(0.25)  # delay for accurate read/write operations on both ends
-    return enableRX
 
+
+    return enableRX
 
 def pc_side(state, input_file=None):
     serial_conn = ser.Serial('COM3', baudrate=9600, bytesize = ser.EIGHTBITS,
@@ -551,7 +598,7 @@ def main():
 
     output_queue = Queue()
 
-    root.after(100, update_output_textbox, [root, output_queue])
+    root.after(100, update_output_textbox,[root, output_queue])
     root.mainloop()
 
 

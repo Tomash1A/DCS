@@ -15,12 +15,14 @@ extern unsigned int JPB_counter;
 extern unsigned int PC_ready;
 extern int phy_global;
 extern unsigned int heading_global;
+extern char heading_str[5];
 extern int calib_flag;
 extern unsigned int hundred_ms;
 extern unsigned int five_ms;
 extern unsigned int flash_address_script_1;
 extern unsigned int flash_address_script_2;
 extern unsigned int flash_address_script_3;
+extern unsigned int phy_flash;
 #define half_sec 500;
 #define clk_tmp 131; // ( (2^20) / 8 )*(10^-3) to convert ms to counter value for TACCR0
 #define SAMPLES_PER_CHANNEL 8   // Define the number of samples per channel
@@ -45,6 +47,7 @@ extern void enable_interrupts();
 extern void disable_interrupts();
 extern void timer_call_counter(int delay);
 extern void write_char_to_flash(char rx_char, int flash_address);
+extern void write_int_to_flash(char value);
 extern void erase_segment(int address);
 extern void write_mat_to_FLASH(char *data, unsigned int flash_address);
 extern void read_avg_Joystick();

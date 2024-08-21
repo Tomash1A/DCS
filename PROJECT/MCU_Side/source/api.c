@@ -18,9 +18,8 @@ void send_JS_data_to_comp(){
             ADC_Joystick_sample();
             voltage2str(V_total_char,Vrx_global,Vry_global, JPB_counter);
             uart_puts(V_total_char);
-            PC_ready = 0 ;
+            PC_ready = 0;
         }
-//        timer_call_counter(hundred_ms);  //give PC time to get 'ack' on '2'
     }
     disable_JPB_interrupt();
 }
@@ -32,7 +31,6 @@ void StepMotor_by_Joystick(){
     while(state==state1){
         ADC_Joystick_sample();
         step_motor_mover();
-    //
     }
 }
 
@@ -46,20 +44,24 @@ void StepMotor_phy_calibration(){
     //there should be a global variable that receives phy's value
     num_steps = 0;  //initialize a counter to count number of steps in 360 deg.
     calib_flag = 0;
+    int phy_int = 0;
+    char phy_char[2];
     enable_JPB_interrupt();
     __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
     while(calib_flag==1){
         //build an HAL function to move step motor one step in a relatively slow pace
         num_steps++;
-        clockwise_step(10);   //t should be no less then 10
+        clockwise_step(8);   //t should be no less then 10
     }
     if(calib_flag == 2){
         disable_JPB_interrupt();
         send_num_steps_to_pc(num_steps);
         state = state8;
-        phy_global = (360*90) /  num_steps;
+        phy_global = (360*90)/num_steps;
         heading_global = 0;
     }
+//    disable_JPB_interrupt();
+
 }
 void upload_script(int upload_script_completed, char tx_char){
     //Return ack to computer, when the upload is finished.

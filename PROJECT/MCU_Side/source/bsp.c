@@ -5,7 +5,7 @@
 //-----------------------------------------------------------------------------
 void GPIOconfig(void){
   WDTCTL = WDTHOLD | WDTPW;		// Stop WDT
-   
+
   // LCD configuration
   LCD_DATA_WRITE &= ~0xFF;
   LCD_DATA_DIR |= 0xF0;    // P1.4-P1.7 To Output('1')
@@ -15,9 +15,11 @@ void GPIOconfig(void){
   // Joystick PB configuration (Input PB)
   JoystickPBPortSEL     &= ~JPBMask;    //Set I/O mode
   JoystickPBPortDir     &= ~JPBMask;    //Set as input
-  JoystickPBPortOut     &= ~JPBMask;    //set out as 0
+  JoystickPBPortOut     |= JPBMask;    //set out as 0
   JoystickPBIntEn       &= ~JPBMask;    //Disable Interrupts (enable them again upon state being called)
-  JoystickPBIntEdgeSel  &= ~JPBMask;    //set as PD mode (for PU: |= JPBMask)
+//  P2OUT |= BIT4;              // Set P2.4 output to high (pull-up resistor)
+  P2REN |= BIT4;              // Enable pull-up resistor for P2.4
+  JoystickPBIntEdgeSel  |= JPBMask;    //set as PD mode (for PU: |= JPBMask) (PD: &= ~JPBMask;)
   JoystickPBIntPend     &= ~JPBMask;    //Set as no Interrupt pending.
 
 
