@@ -5,68 +5,55 @@
 #include  "../header/app.h"    		// private library - APP layer
 
 
-extern enum FSMstate state;   // global variable
-extern enum SYSmode lpm_mode; // global variable
+// Global Variables:
+extern enum FSMstate state;
+extern enum SYSmode lpm_mode;
 extern unsigned int delay_time;
-extern int char_from_pc ;
 extern unsigned int Vrx_global;
 extern unsigned int Vry_global;
+extern int phy_global;
 extern unsigned int JPB_counter;
 extern unsigned int PC_ready;
-extern int phy_global;
-extern unsigned int heading_global;
-extern char heading_str[5];
+extern unsigned int heading_global; //extern- used in api/stepMotorCalibration
+extern int upload_scr_1_completed;
+extern int upload_scr_2_completed;
+extern int upload_scr_3_completed;
 extern int calib_flag;
-extern unsigned int hundred_ms;
-extern unsigned int five_ms;
-extern unsigned int flash_address_script_1;
-extern unsigned int flash_address_script_2;
-extern unsigned int flash_address_script_3;
-extern unsigned int phy_flash;
+extern unsigned int PHY_FLASH;   //Define address for phy
+
+// Global Constants
 #define half_sec 500;
 #define clk_tmp 131; // ( (2^20) / 8 )*(10^-3) to convert ms to counter value for TACCR0
 #define SAMPLES_PER_CHANNEL 8   // Define the number of samples per channel
 #define TOTAL_SAMPLES (SAMPLES_PER_CHANNEL * 2)     // Define the total number of samples
-extern volatile unsigned int adc_results[TOTAL_SAMPLES];
 
-extern int upload_scr_1_completed;
-extern int upload_scr_2_completed;
-extern int upload_scr_3_completed;
-extern void uart_putc(unsigned char c);
+
+
+//Global Function Declaration:
 extern void uart_puts(const char* str);
-
 extern void sysConfig(void);
-extern void print2RGB(char);
 extern void int2str(char *str, unsigned int num);
 extern void voltage2str(char *str, unsigned int num1,unsigned int num2 ,unsigned int num3);
-extern void SetByteToPort(char);
-extern void clrPortByte(char);
-extern void delay(unsigned int);
-extern void enterLPM(unsigned char);
 extern void enable_interrupts();
 extern void disable_interrupts();
 extern void timer_call_counter(int delay);
 extern void write_char_to_flash(char rx_char, int flash_address);
-extern void write_int_to_flash(char value);
+extern void update_phy(int new_value);
 extern void erase_segment(int address);
-extern void write_mat_to_FLASH(char *data, unsigned int flash_address);
-extern void read_avg_Joystick();
 extern void ADC_Joystick_sample();
-
 extern void clockwise_step(unsigned int t);
 extern void counter_clockwise_step(int t);
 extern void step_motor_mover();
-extern void receive_script_from_PC(unsigned int * upload_scr_comp_flag);
 extern void scriptEx(int flash_address);
 extern void send_num_steps_to_pc(int num);
 
+
+// Interrupt Vector Handlers
 extern __interrupt void PBs_handler(void);
-extern __interrupt void PBs_handler_P2(void);
 extern __interrupt void Timer_A0(void);
 extern __interrupt void Timer_A1(void);
 extern __interrupt void USCI0RX_ISR(void);
 extern __interrupt void USCI0TX_ISR(void);
-//extern __interrupt void RESET_ISR (void);
 #endif
 
 // #define CHECKBUSY    1  // using this define, only if we want to read from LCD

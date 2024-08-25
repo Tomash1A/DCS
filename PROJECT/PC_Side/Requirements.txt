@@ -1,0 +1,14 @@
+os
+threading
+customtkinter
+math
+serial
+collections
+PIL
+tkinter
+ctypes
+queue
+sys
+time
+threading
+Enum

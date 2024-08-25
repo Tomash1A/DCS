@@ -1,7 +1,10 @@
 import os
-
-import PIL
+import threading
 import customtkinter as ctk
+import math
+import serial as ser
+from collections import deque
+import PIL
 import tkinter as tk
 from tkinter import *
 from tkinter import filedialog, IntVar, Label, messagebox
@@ -9,11 +12,12 @@ from PIL import Image, ImageTk, ImageDraw
 import ctypes
 from queue import Queue, Empty
 import sys
-import serial as ser
+
 import time
 from utils import *
 import threading
 from enum import Enum
+
 
 # MODES:
 SCRIPT_MODE = "Script"
@@ -65,26 +69,7 @@ STATE_TITLES = {
 }
 
 NUM_SAMPLES_PAINTER = 20
-import threading
-import time
-import tkinter as tk
 
-import threading
-import time
-import tkinter as tk
-from collections import deque
-
-import time
-import threading
-import tkinter as tk
-import customtkinter as ctk
-import math
-
-import time
-import threading
-import tkinter as tk
-import customtkinter as ctk
-import math
 
 class HeadingVisualizer:
     IS_HEADING_OPEN = False
@@ -94,7 +79,7 @@ class HeadingVisualizer:
         # self.main_frame = main_frame
         self.canvas = ctk.CTkCanvas(self.root, width=400, height=400)
         self.canvas.place(relx=0.5, rely=0.5, anchor=tk.CENTER)
-        self.heading_text = self.canvas.create_text(200, 200, text="0°", font=("Arial", 36), fill="white")
+        self.heading_text = self.canvas.create_text(200, 200, text="0°", font=("Arial", 36), fill="black")
         self.heading_value = 0
         self.latest_heading = 0
 
@@ -162,7 +147,7 @@ class HeadingVisualizer:
             radius = 150
             x = 200 + radius * math.cos(math.radians(self.latest_heading-90))
             y = 200 + radius * math.sin(math.radians(self.latest_heading-90))
-            self.canvas.create_line(200, 200, x, y, width=3, fill="white", tags="indicator")
+            self.canvas.create_line(200, 200, x, y, width=3, fill="black", tags="indicator")
 
         if not self.close_conn:
             self.root.after(10, self.update_heading)
@@ -349,22 +334,34 @@ def on_sidebar_select(window_title, main_frame):
 
 def upload_script(window_title):
     input_file = filedialog.askopenfilename(
-        title = "Select a text file",
-        filetypes = (("Text files", "*.txt"), ("All files", "*.*"))
+        title="Select a text file",
+        filetypes=(("Text files", ".txt"), ("All files", ".*"))
     )
-    output_path = r'C:\Users\user1\University_ 4th year\DCS\PROJECT\PC_Side'   # todo: magic num and optional param to func
-    if window_title == UPLOAD_SCRIPT_1:     # todo: can reduce ifs
-        output_file = "script1.txt"     # todo: can reduce lines like - "script_state{window_title)}.txt"
+
+    if not input_file:  # User cancelled input file selection
+        return
+
+    # Ask user to choose the output directory
+    output_dir = filedialog.askdirectory(title="Select output directory")
+
+    if not output_dir:  # User cancelled output directory selection
+        return
+
+    if window_title == UPLOAD_SCRIPT_1:
+        output_file = "script1.txt"
         choice = SCRIPT_1_UPLOAD_STATE
     elif window_title == UPLOAD_SCRIPT_2:
         output_file = "script2.txt"
         choice = SCRIPT_2_UPLOAD_STATE
-    else:   # elif window_title == UPLOAD_SCRIPT_3:
+    else:  # window_title == UPLOAD_SCRIPT_3
         output_file = "script3.txt"
         choice = SCRIPT_3_UPLOAD_STATE
 
-    translate_file(input_file, os.path.join(output_path, output_file))
-    pc_side(choice, input_file)
+    # Combine the selected directory with the output filename
+    output_path = os.path.join(output_dir, output_file)
+
+    translate_file(input_file, output_path)
+    pc_side(choice,input_file)
 
 def run_script(window_title):   # todo: can make as lambda
     if window_title == RUN_SCRIPT_1:

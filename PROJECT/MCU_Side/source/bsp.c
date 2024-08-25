@@ -15,7 +15,7 @@ void GPIOconfig(void){
   // Joystick PB configuration (Input PB)
   JoystickPBPortSEL     &= ~JPBMask;    //Set I/O mode
   JoystickPBPortDir     &= ~JPBMask;    //Set as input
-  JoystickPBPortOut     |= JPBMask;    //set out as 0
+  JoystickPBPortOut     |= JPBMask;    //set out as 1 for PU resistor
   JoystickPBIntEn       &= ~JPBMask;    //Disable Interrupts (enable them again upon state being called)
 //  P2OUT |= BIT4;              // Set P2.4 output to high (pull-up resistor)
   P2REN |= BIT4;              // Enable pull-up resistor for P2.4

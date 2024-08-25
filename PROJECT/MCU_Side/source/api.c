@@ -11,7 +11,6 @@ void send_JS_data_to_comp(){
     //objectives:
     //1. send the averaged value of Vrx,y_global to computer relatively fast for updating
     //2. enable interrupts from JPB so it could change the pens function (write/erase/null)
-//    timer_call_counter(hundred_ms);  //give PC time to get 'ack' on '2'
     enable_JPB_interrupt();
     while(state==state2){
         if(PC_ready == 1){
@@ -45,7 +44,6 @@ void StepMotor_phy_calibration(){
     num_steps = 0;  //initialize a counter to count number of steps in 360 deg.
     calib_flag = 0;
     int phy_int = 0;
-    char phy_char[2];
     enable_JPB_interrupt();
     __bis_SR_register(LPM0_bits + GIE);       // Enter LPM0 w/ interrupt
     while(calib_flag==1){
@@ -57,12 +55,14 @@ void StepMotor_phy_calibration(){
         disable_JPB_interrupt();
         send_num_steps_to_pc(num_steps);
         state = state8;
+        phy_int = (360*90)/num_steps;
         phy_global = (360*90)/num_steps;
+//        erase_segment(0x1080);
+//        update_phy(phy_int);
         heading_global = 0;
     }
-//    disable_JPB_interrupt();
-
 }
+
 void upload_script(int upload_script_completed, char tx_char){
     //Return ack to computer, when the upload is finished.
     if(upload_script_completed == 1){
@@ -141,16 +141,6 @@ void Rotate_right(int arg){
         }
     }
 
-//-------------------------------------------------------------
-//                6. Clear LCD and init counters
-//------------------------------------------------------------
-void clear_counters(){
-    disable_interrupts();
-    lcd_clear();
-    lcd_home();
-//    count_up = 0;
-    enable_interrupts();
-    state = state8;
-}
+
 
 

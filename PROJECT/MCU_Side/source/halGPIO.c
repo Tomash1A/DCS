@@ -5,10 +5,8 @@
 #include <string.h>
 
 // Global Variables
-unsigned int i;
-int j=0;
+//int j=0;
 unsigned int delay_time = 500;
-unsigned int hundred_ms = 100;
 const unsigned int timer_half_sec = 65535;
 unsigned int Vrx_global = 0x0000;
 unsigned int Vry_global = 0x0000;
@@ -32,8 +30,9 @@ static unsigned int flash_address_script_2 = 0x1040;
 int upload_scr_2_completed = 0;
 static unsigned int flash_address_script_3 = 0x1080;
 int upload_scr_3_completed = 0;
-static unsigned int phy_flash = 0x1100;
-//unsigned int reset_flag= 0;
+static unsigned int PHY_FLASH = 0x10BF;
+unsigned int *phy_ptr = (unsigned int *) 0x10BF;
+
 
 //--------------------------------------------------------------------
 //             System Configuration  
@@ -44,14 +43,11 @@ void sysConfig(void){
 	lcd_init();
 	lcd_clear();
 	UART_init();
+//	erase_segment(0x1000);
+//	erase_segment(0x1040);
+//	erase_segment(0x1080);
+//	update_phy(63);
 }
-//--------------------------------------------------------------------
-//--------------------------------------------------------------------
-// 				Set Byte to Port
-//--------------------------------------------------------------------
-void print2RGB(char ch){
-    RGBArrPortOut = ch;
-} 
 
 //---------------------------------------------------------------------
 //            General Function
@@ -155,7 +151,7 @@ void voltage2str(char *str, unsigned int Vx, unsigned int Vy, unsigned int JPB) 
 
 //----------------------Count Timer Calls---------------------------------
 void timer_call_counter(int delay){
-
+    unsigned int i = 0;
     unsigned int num_of_halfSec;
 
     num_of_halfSec = (int) delay / half_sec;
@@ -192,10 +188,12 @@ void step_motor_mover(){
 }
 
 void counter_clockwise_step(int t){
+//    int phy = *phy_ptr;
     phase(Phase_C, t);
     phase(Phase_B, t);
     phase(Phase_A, t);
     phase(Phase_D, t);
+//    heading_global -= phy;
     heading_global -= phy_global;
     if(heading_global < 0){
         heading_global += (360*90);
@@ -203,6 +201,7 @@ void counter_clockwise_step(int t){
 }
 
 void counter_clockwise_half_step(int t){
+//    int phy = *phy_ptr;
     phase(Phase_D, t);
     phase(Phase_D+Phase_C, t);
     phase(Phase_C, t);
@@ -211,6 +210,7 @@ void counter_clockwise_half_step(int t){
     phase(Phase_B+Phase_A, t);
     phase(Phase_A, t);
     phase(Phase_A+Phase_D, t);
+//    heading_global -= (phy/2);
     heading_global -= (phy_global/2);
     if(heading_global < 0){
         heading_global += (360*90);
@@ -218,10 +218,12 @@ void counter_clockwise_half_step(int t){
 }
 
 void clockwise_step(unsigned int t){
+//    int phy = *phy_ptr;
     phase(Phase_D, t);
     phase(Phase_A, t);
     phase(Phase_B, t);
     phase(Phase_C, t);
+//    heading_global += phy;
     heading_global += phy_global;
     if(heading_global >= (360*90)){
         heading_global -= (360*90);
@@ -229,6 +231,7 @@ void clockwise_step(unsigned int t){
 }
 
 void clockwise_half_step(int t){
+//    int phy = *phy_ptr;
     phase(Phase_A+Phase_D, t);
     phase(Phase_A, t);
     phase(Phase_B+Phase_A, t);
@@ -237,6 +240,7 @@ void clockwise_half_step(int t){
     phase(Phase_C, t);
     phase(Phase_D+Phase_C, t);
     phase(Phase_D, t);
+//    heading_global += (phy/2);
     heading_global += (phy_global/2);
     if(heading_global >= (360*90)){
         heading_global -= (360*90);
@@ -252,8 +256,10 @@ void phase(unsigned int phase, int t){
 
 void stepper_deg(int arg, int scan_flag){
     arg *= 90;
+//    int phy = *phy_ptr;
         int diff = heading_global - arg; //X - Y
         while(((diff > phy_global) && (diff > 0)) || ((diff < phy_global) && (diff < 0))){
+//        while(((diff > phy) && (diff > 0)) || ((diff < phy) && (diff < 0))){
             if((PC_ready == 1) || scan_flag== 1){
             diff = heading_global - arg;
             if(diff > 0){                           // (X-Y > 0)
@@ -308,15 +314,15 @@ void stepper_scan(int a1, int a2){
 //            Enter from LPM0 mode (part of timer
 //---------------------------------------------------------------------
 void enterLPM(unsigned char LPM_level){
-	if (LPM_level == 0x00) 
+	if (LPM_level == 0x00)
 	  _BIS_SR(LPM0_bits);     /* Enter Low Power Mode 0 */
-        else if(LPM_level == 0x01) 
+        else if(LPM_level == 0x01)
 	  _BIS_SR(LPM1_bits);     /* Enter Low Power Mode 1 */
-        else if(LPM_level == 0x02) 
+        else if(LPM_level == 0x02)
 	  _BIS_SR(LPM2_bits);     /* Enter Low Power Mode 2 */
-	else if(LPM_level == 0x03) 
+	else if(LPM_level == 0x03)
 	  _BIS_SR(LPM3_bits);     /* Enter Low Power Mode 3 */
-        else if(LPM_level == 0x04) 
+        else if(LPM_level == 0x04)
 	  _BIS_SR(LPM4_bits);     /* Enter Low Power Mode 4 */
 }
 //---------------------------------------------------------------------
@@ -369,6 +375,22 @@ void write_char_to_flash(char rx_char, int flash_address) {
     }
 }
 
+void update_phy(int new_value) {
+        unsigned int *flash_ptr;
+        flash_ptr = (unsigned int *)PHY_FLASH;
+
+        // Unlock flash memory
+        FCTL3 = FWKEY ;
+        FCTL1 = FWKEY | WRT;
+
+//        *flash_ptr = 0xFF;
+        // Write new value
+        *flash_ptr = new_value;
+        while (FCTL3 & BUSY);
+        // Lock flash memory
+        FCTL1 = FWKEY;
+        FCTL3 = FWKEY | LOCK;
+}
 
 void erase_segment(int address){
     char *flash_ptr;
@@ -434,9 +456,7 @@ void scriptEx(int flash_address){
             uart_puts("x");
             break;
         case 0x07: // servo_scan
-//            uart_puts("x");
             stepper_scan(arg1, arg2);
-//            uart_puts("x");
             break;
         case 0x08: // sleep
             finish_flag = 1;
@@ -731,8 +751,6 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
             flash_address_script_1 = 0x1000;
             erase_segment(flash_address_script_1);
             upload_scr_1_completed = 0;
-//            UCA0TXBUF = 'F';
-//            IE2 |= UCA0TXIE;    //Move to state 5 as an incoming script is on its way
         }
         else if(UCA0RXBUF == '6'){
             state = state7;
@@ -742,8 +760,10 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         }
         else if(UCA0RXBUF == '7'){
             state = state9;
+            int tmp = *phy_ptr;
             flash_address_script_3 = 0x1080;
             erase_segment(flash_address_script_3);
+            update_phy(tmp);
             upload_scr_3_completed = 0;
         }
         else if(UCA0RXBUF == '8'){
@@ -802,4 +822,5 @@ void __attribute__ ((interrupt(USCIAB0RX_VECTOR))) USCI0RX_ISR (void)
         break;
     }
 }
+
 

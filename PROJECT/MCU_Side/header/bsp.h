@@ -8,11 +8,11 @@
 #define   debounceVal      20000
 
 
-// RGB abstraction
-#define RGBArrPortOut      P2OUT
-#define RGBArrPortDir      P2DIR
-#define RGBArrPortSEL      P2SEL
-#define RGBMASK            0x07 //P2.0-P2.2
+//// RGB abstraction
+//#define RGBArrPortOut      P2OUT
+//#define RGBArrPortDir      P2DIR
+//#define RGBArrPortSEL      P2SEL
+//#define RGBMASK            0x07 //P2.0-P2.2
 
 
 
@@ -67,7 +67,6 @@ extern void TIMER_A0_config(unsigned int counter);
 extern void TIMER1_A1_config(void);
 extern void TIMER1_A1_stop(void);
 extern void TIMERB_config(void);
-extern void TIMERB_config_Task3(void);
 extern void StopAllTimers(void);
 extern void UART_init(void);
 extern void ADC_Joystick_config(unsigned int mask);

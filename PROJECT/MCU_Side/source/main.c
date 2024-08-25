@@ -12,6 +12,12 @@ void main(void){
   state = state8;  // start in idle state on RESET
   lpm_mode = mode0;     // start in idle state on RESET
   sysConfig();     // Configure GPIO, Stop Timers, Init LCD
+  timer_call_counter(100);
+//  lcd_home();
+  lcd_puts("System Reset!");
+  timer_call_counter(500);
+  lcd_clear();
+
 
   while(1){
 	switch(state){
