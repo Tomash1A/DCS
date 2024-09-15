@@ -1,1 +1,1 @@
-Tomer Sharon and Alon Gorka's Digital Computer Systems practical assignments.
+Tomer Sharon and Alon Gorka's Digital Computer Structure practical assignments.
